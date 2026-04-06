@@ -1,0 +1,32 @@
+{
+  "baseUrl": "https://opensource-demo.orangehrmlive.com",
+  "navigationTimeout": 60000,
+  "credentials": {
+    "username": "Admin",
+    "password": "admin123",
+    "invalidUsername": "wronguser",
+    "invalidPassword": "wrongpass"
+  },
+  "employee": {
+    "firstName": "John",
+    "lastName": "TestProd",
+    "employeeId": "PRD001"
+  },
+  "leaveTypes": {
+    "annual": "Annual Leave",
+    "casual": "Casual Leave",
+    "sick": "Sick Leave"
+  },
+  "urls": {
+    "login": "/web/index.php/auth/login",
+    "dashboard": "/web/index.php/dashboard/index",
+    "employeeList": "/web/index.php/pim/viewEmployeeList",
+    "addEmployee": "/web/index.php/pim/addEmployee",
+    "leaveList": "/web/index.php/leave/viewLeaveList",
+    "applyLeave": "/web/index.php/leave/applyLeave",
+    "myLeave": "/web/index.php/leave/viewMyLeaveList"
+  },
+  "searchProfiles": [
+    { "firstName": "John", "lastName": "TestProd" }
+  ]
+}
