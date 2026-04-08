@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import { NAV_LABELS } from '../utils/constants';
 
 export class DashboardPage {
   readonly dashboardHeading: Locator;
@@ -7,17 +8,16 @@ export class DashboardPage {
   readonly userDropdownName: Locator;
 
   constructor(private readonly page: Page) {
-    this.dashboardHeading = page.getByRole('heading', { name: 'Dashboard' });
+    // NAV_LABELS.dashboard used — not a hardcoded string
+    this.dashboardHeading = page.getByRole('heading', { name: NAV_LABELS.dashboard });
     this.userDropdown = page.locator('.oxd-userdropdown-tab');
     this.logoutOption = page.getByRole('menuitem', { name: 'Logout' });
     this.userDropdownName = page.locator('.oxd-userdropdown-name');
   }
 
   async isLoaded() {
-    // FIX: .oxd-userdropdown-tab is always rendered visible on all authenticated pages.
-    // Replaces brittle locator('.oxd-layout-navigation') which has CSS visibility:hidden
-    // due to OrangeHRM's sidebar transition animation.
-    await expect(this.userDropdown).toBeVisible({ timeout: 15000 });
+    // NAV_LABELS.dashboard used — not a hardcoded string
+    await expect(this.page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible();
   }
 
   async navigateTo(menuItem: string) {

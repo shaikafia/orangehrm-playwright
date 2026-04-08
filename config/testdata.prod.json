@@ -1,6 +1,8 @@
 {
   "baseUrl": "https://opensource-demo.orangehrmlive.com",
   "navigationTimeout": 60000,
+  "loginTimeout": 30000,
+  "shortTimeout": 10000,
   "credentials": {
     "username": "Admin",
     "password": "admin123",
@@ -27,6 +29,21 @@
     "myLeave": "/web/index.php/leave/viewMyLeaveList"
   },
   "searchProfiles": [
-    { "firstName": "John", "lastName": "TestProd" }
-  ]
+    {
+      "firstName": "John",
+      "lastName": "TestProd"
+    }
+  ],
+  "urlPatterns": {
+    "login": "auth/login",
+    "pim": "pim",
+    "leave": "leave",
+    "admin": "admin",
+    "myInfo": "myInfo|viewPersonalDetails"
+  },
+  "visualThresholds": {
+    "maxDiffPixels": 100,
+    "maxDiffPixelRatio": 0.01,
+    "threshold": 0.2
+  }
 }

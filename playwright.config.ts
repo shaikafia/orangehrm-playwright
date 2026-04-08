@@ -6,36 +6,39 @@ const env = process.env.TEST_ENV || 'dev';
 const testDataPath = path.resolve(__dirname, 'config', `testdata.${env}.json`);
 const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
 
+const headless = testData.HEADLESS;
+
 export default defineConfig({
-  // No globalSetup needed — each test group logs in fresh via beforeEach.
+  globalSetup: require.resolve('./tests/global-setup'),
   testDir: './tests',
   snapshotDir: './tests/snapshots',
+  timeout: 60_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1,
-  timeout: testData.navigationTimeout,
+  workers: testData.workers,
   reporter: process.env.CI
-    ? [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]]
+    ? [['line'], ['junit', { outputFile: 'test-results/junit.xml' }], ['html', { open: 'never' }]]
     : 'html',
   use: {
     baseURL: testData.baseUrl,
     trace: 'on-first-retry',
+    navigationTimeout: 45_000,
+    actionTimeout: 30_000,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    headless: false,
-    // NO storageState here — the demo site rejects saved sessions instantly.
-    // Each authenticated describe block logs in fresh via beforeEach instead.
+    headless: headless,
+    storageState: '.auth/user.json',
   },
   expect: {
     toHaveScreenshot: {
-      maxDiffPixels: 100,
-      maxDiffPixelRatio: 0.01,
-      threshold: 0.2,
+      maxDiffPixels:     testData.visualThresholds.maxDiffPixels,
+      maxDiffPixelRatio: testData.visualThresholds.maxDiffPixelRatio,
+      threshold:         testData.visualThresholds.threshold,
       animations: 'disabled',
     },
     toMatchSnapshot: {
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: testData.visualThresholds.maxDiffPixelRatio,
     },
   },
   projects: [

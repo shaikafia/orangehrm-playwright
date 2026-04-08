@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import { TIMEOUTS, PAGE_HEADINGS, NAV_LABELS } from '../utils/constants';
 
 export class LeavePage {
   readonly pageHeading: Locator;
@@ -10,9 +11,9 @@ export class LeavePage {
   readonly tableRows: Locator;
 
   constructor(private readonly page: Page) {
-    this.pageHeading = page.getByRole('heading', { name: 'Apply Leave' });
+    this.pageHeading = page.getByRole('heading', { name: PAGE_HEADINGS.applyLeave });
     this.leaveTypeDropdown = page.locator('.oxd-select-text').first();
-    this.applyButton = page.getByRole('button', { name: 'Apply' });
+    this.applyButton = page.getByRole('button', { name: NAV_LABELS.apply });
     this.successToast = page.locator('.oxd-toast-content--success');
     this.errorToast = page.locator('.oxd-toast-content--error');
     this.tableBody = page.locator('.oxd-table-body');
@@ -20,14 +21,32 @@ export class LeavePage {
   }
 
   async gotoApplyLeave() {
+    // No URL argument — navigates to apply leave path directly
     await this.page.goto('/web/index.php/leave/applyLeave', { waitUntil: 'domcontentloaded' });
     await this.isLoaded();
   }
 
   async isLoaded() {
-    // Check for the Apply Leave page heading — this is unique to the Apply Leave page
-    // and only visible when the user is properly authenticated and on this page.
-    await expect(this.pageHeading).toBeVisible({ timeout: 15000 });
+    await expect(this.pageHeading).toBeVisible({ timeout: TIMEOUTS.standard });
+  }
+
+  async gotoLeaveList() {
+    // No URL argument — navigates to leave list path directly
+    await this.page.goto('/web/index.php/leave/viewLeaveList', { waitUntil: 'domcontentloaded' });
+    await this.isLeaveListLoaded();
+  }
+
+  async isLeaveListLoaded() {
+    // exact: true — multiple 'Leave' links exist in sidebar + topbar
+    await expect(
+      this.page.getByRole('link', { name: NAV_LABELS.leave, exact: true })
+    ).toBeVisible({ timeout: TIMEOUTS.standard });
+  }
+
+  async gotoMyLeave() {
+    // No URL argument — navigates to my leave list path directly
+    await this.page.goto('/web/index.php/leave/viewMyLeaveList', { waitUntil: 'domcontentloaded' });
+    await this.isLeaveListLoaded();
   }
 
   async selectLeaveType(leaveType: string) {

@@ -1,23 +1,24 @@
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
 
-const env = process.env.TEST_ENV || 'dev';
+const env          = process.env.TEST_ENV || 'dev';
 const testDataPath = path.resolve(__dirname, '..', 'config', `testdata.${env}.json`);
-const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+const testData     = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
 
-const baseUrl = testData.baseUrl;
+const baseUrl  = testData.baseUrl;
+const loginUrl = testData.urls.login; // loaded from testdata — not hardcoded
 
 console.log(`\n🔍 Health Check - Environment: ${env}`);
-console.log(`📡 Checking: ${baseUrl}\n`);
+console.log(`📡 Checking: ${baseUrl}${loginUrl}\n`);
 
 const url = new URL(baseUrl);
 
 const options = {
   hostname: url.hostname,
-  port: url.port || 443,
-  path: '/web/index.php/auth/login',
-  method: 'GET',
+  port:     url.port || 443,
+  path:     loginUrl,   // from testdata JSON
+  method:   'GET',
 };
 
 const req = https.request(options, (res) => {
