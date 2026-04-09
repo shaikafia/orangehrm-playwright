@@ -1,7 +1,7 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { TIMEOUTS, NAV_LABELS, SELECTORS } from '../utils/constants';
+import { TIMEOUTS, NAV_LABELS, SELECTORS, PLACEHOLDERS } from '../utils/constants';
 
 function getLoginUrl(): string {
   const env = process.env.TEST_ENV || 'dev';
@@ -17,8 +17,8 @@ export class LoginPage {
   readonly fieldError: Locator;
 
   constructor(private readonly page: Page) {
-    this.usernameInput = page.getByPlaceholder('Username');
-    this.passwordInput = page.getByPlaceholder('Password');
+    this.usernameInput = page.getByPlaceholder(PLACEHOLDERS.username);
+    this.passwordInput = page.getByPlaceholder(PLACEHOLDERS.password);
     this.loginButton   = page.getByRole('button', { name: NAV_LABELS.login });
     this.errorMessage  = page.locator(SELECTORS.alertText);
     this.fieldError    = page.locator(SELECTORS.fieldError).first();

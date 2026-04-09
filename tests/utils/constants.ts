@@ -45,6 +45,11 @@ export const AUTH_CONFIG = {
   path: '.auth/user.json',
 };
 
+export const PLACEHOLDERS = {
+  username: 'Username',
+  password: 'Password',
+};
+
 export const SELECTORS = {
   topbarHeader:      '.oxd-topbar-header',
   tableFilter:       '.oxd-table-filter',
@@ -60,6 +65,8 @@ export const SELECTORS = {
   autocompleteInput: '.oxd-autocomplete-text-input input',
   dateInput:         '.oxd-date-input input',
   inputField:        '.oxd-input',
+  firstNameInput:    'input[name="firstName"]',
+  lastNameInput:     'input[name="lastName"]',
 };
 
 export const SCREENSHOT_PATHS = {
