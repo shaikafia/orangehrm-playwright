@@ -2,30 +2,64 @@ import { test } from './fixtures/base';
 import { expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { ERROR_MESSAGES } from './utils/constants';
+import {
+  ERROR_MESSAGES,
+  TEST_PAYLOADS,
+  NAV_LABELS,
+  SELECTORS,
+  SCREENSHOT_PATHS,
+} from './utils/constants';
 
-const env = process.env.TEST_ENV || 'dev';
-const testDataPath = path.resolve(__dirname, '..', 'config', `testdata.${env}.json`);
-const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+function loadTestData() {
+  const env = process.env.TEST_ENV || 'dev';
+  const testDataPath = path.resolve(__dirname, '..', 'config', `testdata.${env}.json`);
+  return JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+}
 
+const testData = loadTestData();
 const { username, password, invalidUsername, invalidPassword } = testData.credentials;
-const { searchProfiles, urls } = testData;
+const { searchProfiles, urls, urlPatterns, loginTimeout, shortTimeout, navigationTimeout } =
+  testData;
 
-/**
- * Logs in with valid credentials and waits until the dashboard is visible.
- * Called in beforeEach for every authenticated test group because the
- * OrangeHRM demo site rejects saved session cookies immediately.
- */
 async function freshLogin(loginPage: any, page: any) {
+  await page.context().clearCookies();
   await loginPage.goto();
   await loginPage.login(username, password);
-  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible({
+    timeout: loginTimeout,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
 // LOGIN & NEGATIVE TESTS
 // ─────────────────────────────────────────────────────────────
 test.describe('OrangeHRM - Login & Negative Tests (No Auth) @regression', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  const invalidLoginScenarios = [
+    {
+      id: 'TC-02',
+      type: 'invalid username',
+      user: invalidUsername,
+      pass: password,
+      error: ERROR_MESSAGES.invalidCredentials,
+    },
+    {
+      id: 'TC-03',
+      type: 'invalid password',
+      user: username,
+      pass: invalidPassword,
+      error: ERROR_MESSAGES.invalidCredentials,
+    },
+    {
+      id: 'TC-04',
+      type: 'both invalid credentials',
+      user: invalidUsername,
+      pass: invalidPassword,
+      error: ERROR_MESSAGES.invalidCredentials,
+    },
+  ];
+
   test('[TC-01] @smoke should login successfully with valid credentials', async ({
     loginPage,
     dashboardPage,
@@ -35,44 +69,28 @@ test.describe('OrangeHRM - Login & Negative Tests (No Auth) @regression', () => 
     await dashboardPage.isLoaded();
   });
 
-  test('[TC-02] should display error with invalid username', async ({ loginPage }) => {
-    await loginPage.goto();
-    await loginPage.login(invalidUsername, password);
-    await loginPage.expectErrorMessage(ERROR_MESSAGES.invalidCredentials);
-  });
+  for (const scenario of invalidLoginScenarios) {
+    test(`[${scenario.id}] should display error for ${scenario.type}`, async ({ loginPage }) => {
+      await loginPage.goto();
+      await loginPage.login(scenario.user, scenario.pass);
+      await loginPage.expectErrorMessage(scenario.error);
+    });
+  }
 
-  test('[TC-03] should display error with invalid password', async ({ loginPage }) => {
-    await loginPage.goto();
-    await loginPage.login(username, invalidPassword);
-    await loginPage.expectErrorMessage(ERROR_MESSAGES.invalidCredentials);
-  });
-
-  test('[TC-04] should display error with both invalid credentials', async ({ loginPage }) => {
-    await loginPage.goto();
-    await loginPage.login(invalidUsername, invalidPassword);
-    await loginPage.expectErrorMessage(ERROR_MESSAGES.invalidCredentials);
-  });
-
-  test('[TC-05] should display required error when username is empty', async ({
-    loginPage,
-    page,
-  }) => {
+  test('[TC-05] should display required error when username is empty', async ({ loginPage }) => {
     await loginPage.goto();
     await loginPage.login('', password);
-    await expect(page.locator('.oxd-input-field-error-message').first()).toBeVisible();
+    await loginPage.expectFieldError();
   });
 
-  test('[TC-06] should display required error when password is empty', async ({
-    loginPage,
-    page,
-  }) => {
+  test('[TC-06] should display required error when password is empty', async ({ loginPage }) => {
     await loginPage.goto();
     await loginPage.login(username, '');
-    await expect(page.locator('.oxd-input-field-error-message').first()).toBeVisible();
+    await loginPage.expectFieldError();
   });
 
   test('[TC-07] should handle XSS injection attempt safely', async ({ loginPage, page }) => {
-    const xssPayload = '<script>alert("xss")</script>';
+    const xssPayload = TEST_PAYLOADS.xss;
     let xssExecuted = false;
     page.on('dialog', async (dialog: any) => {
       xssExecuted = true;
@@ -85,7 +103,7 @@ test.describe('OrangeHRM - Login & Negative Tests (No Auth) @regression', () => 
   });
 
   test('[TC-08] should handle SQL injection attempt safely', async ({ loginPage }) => {
-    const sqlPayload = "' OR '1'='1";
+    const sqlPayload = TEST_PAYLOADS.sql;
     await loginPage.goto();
     await loginPage.login(sqlPayload, password);
     await loginPage.expectErrorMessage(ERROR_MESSAGES.invalidCredentials);
@@ -109,10 +127,9 @@ test.describe('OrangeHRM - Dashboard (Authenticated) @regression', () => {
     expect(name.length).toBeGreaterThan(0);
   });
 
-  test('[TC-11] should logout successfully', async ({ dashboardPage, loginPage, page }) => {
+  test('[TC-11] should logout successfully', async ({ dashboardPage, page }) => {
     await dashboardPage.logout();
-    await loginPage.isLoaded();
-    await expect(page).toHaveURL(/auth\/login/);
+    await expect(page).toHaveURL(new RegExp(urlPatterns.login));
   });
 });
 
@@ -123,7 +140,7 @@ test.describe('OrangeHRM - Employee Management @regression', () => {
   test.beforeEach(async ({ loginPage, page }) => {
     await freshLogin(loginPage, page);
     await page.goto(urls.employeeList, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('.oxd-table-filter')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: navigationTimeout });
   });
 
   test('[TC-12] @smoke should load employee list page', async ({ employeePage }) => {
@@ -144,10 +161,7 @@ test.describe('OrangeHRM - Employee Management @regression', () => {
       page,
     }) => {
       await employeePage.searchEmployeeByName(profile.firstName);
-      // The table body is hidden when no results are found ("No Records Found").
-      // We confirm the search completed by checking the filter panel is still present —
-      // this proves the page did not navigate away and the search ran successfully.
-      await expect(page.locator('.oxd-table-filter')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: navigationTimeout });
     });
   }
 
@@ -173,20 +187,14 @@ test.describe('OrangeHRM - Leave Module @regression', () => {
     await leavePage.isLoaded();
   });
 
-  test('[TC-17] should load leave list page', async ({ page }) => {
-    await page.goto(urls.leaveList, { waitUntil: 'domcontentloaded' });
-    // Use exact: true — the Leave sidebar link and topbar sub-links all match 'Leave'
-    // without exact matching, causing a strict mode violation (4 elements found).
-    await expect(page.getByRole('link', { name: 'Leave', exact: true })).toBeVisible({
-      timeout: 15000,
-    });
+  test('[TC-17] should load leave list page', async ({ leavePage }) => {
+    await leavePage.gotoLeaveList();
+    await leavePage.isLeaveListLoaded();
   });
 
-  test('[TC-18] should load my leave list page', async ({ page }) => {
-    await page.goto(urls.myLeave, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('link', { name: 'Leave', exact: true })).toBeVisible({
-      timeout: 15000,
-    });
+  test('[TC-18] should load my leave list page', async ({ leavePage }) => {
+    await leavePage.gotoMyLeave();
+    await leavePage.isLeaveListLoaded();
   });
 });
 
@@ -199,25 +207,30 @@ test.describe('OrangeHRM - Navigation @regression', () => {
   });
 
   test('[TC-19] @smoke should navigate to PIM from sidebar', async ({ page }) => {
-    await page.getByRole('link', { name: 'PIM' }).click();
-    await expect(page).toHaveURL(/pim/);
-    await expect(page.getByRole('link', { name: 'Employee List' })).toBeVisible({ timeout: 15000 });
+    await page.getByRole('link', { name: NAV_LABELS.pim }).click();
+    await expect(page).toHaveURL(new RegExp(urlPatterns.pim));
+    await expect(page.getByRole('link', { name: NAV_LABELS.employeeList })).toBeVisible({
+      timeout: navigationTimeout,
+    });
   });
 
   test('[TC-20] should navigate to Leave from sidebar', async ({ page }) => {
-    await page.getByRole('link', { name: 'Leave', exact: true }).click();
-    await expect(page).toHaveURL(/leave/);
-    await expect(page.getByRole('link', { name: 'Apply' })).toBeVisible({ timeout: 15000 });
+    await page.getByRole('link', { name: NAV_LABELS.leave, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(urlPatterns.leave));
+    await expect(page.getByRole('link', { name: NAV_LABELS.apply })).toBeVisible({
+      timeout: navigationTimeout,
+    });
   });
 
   test('[TC-21] should navigate to My Info page', async ({ page }) => {
-    await page.getByRole('link', { name: 'My Info' }).click();
-    // OrangeHRM redirects "My Info" to viewPersonalDetails — both URLs are correct.
-    await expect(page).toHaveURL(/myInfo|viewPersonalDetails/, { timeout: 10000 });
-    await expect(page.getByRole('textbox', { name: 'First Name' })).toBeVisible({ timeout: 15000 });
+    await page.getByRole('link', { name: NAV_LABELS.myInfo }).click();
+    await expect(page).toHaveURL(new RegExp(urlPatterns.myInfo), { timeout: shortTimeout });
+    await expect(page.getByRole('textbox', { name: NAV_LABELS.firstName })).toBeVisible({
+      timeout: navigationTimeout,
+    });
   });
 
   test('[TC-22] should take screenshot of dashboard', async ({ page }) => {
-    await page.screenshot({ path: 'test-results/screenshots/dashboard.png', fullPage: true });
+    await page.screenshot({ path: SCREENSHOT_PATHS.dashboard, fullPage: true });
   });
 });

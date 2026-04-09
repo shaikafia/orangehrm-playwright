@@ -1,30 +1,36 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { TIMEOUTS, NAV_LABELS, SELECTORS } from '../utils/constants';
+
+function getLoginUrl(): string {
+  const env = process.env.TEST_ENV || 'dev';
+  const testDataPath = path.resolve(__dirname, '..', '..', 'config', `testdata.${env}.json`);
+  return JSON.parse(fs.readFileSync(testDataPath, 'utf8')).urls.login;
+}
 
 export class LoginPage {
   readonly usernameInput: Locator;
   readonly passwordInput: Locator;
   readonly loginButton: Locator;
   readonly errorMessage: Locator;
+  readonly fieldError: Locator;
 
   constructor(private readonly page: Page) {
     this.usernameInput = page.getByPlaceholder('Username');
     this.passwordInput = page.getByPlaceholder('Password');
-    this.loginButton = page.getByRole('button', { name: 'Login' });
-    this.errorMessage = page.locator('.oxd-alert-content-text');
+    this.loginButton   = page.getByRole('button', { name: NAV_LABELS.login });
+    this.errorMessage  = page.locator(SELECTORS.alertText);
+    this.fieldError    = page.locator(SELECTORS.fieldError).first();
   }
 
   async goto() {
-    await this.page.goto('/web/index.php/auth/login', { waitUntil: 'domcontentloaded' });
+    await this.page.goto(getLoginUrl(), { waitUntil: 'domcontentloaded' });
     await this.isLoaded();
   }
 
-  // async goto() {
-  //   await this.page.goto('/web/index.php/auth/login');
-  //   await this.isLoaded();
-  // }
-
   async isLoaded() {
-    await expect(this.usernameInput).toBeVisible();
+    await expect(this.usernameInput).toBeVisible({ timeout: TIMEOUTS.login });
   }
 
   async login(username: string, password: string) {
@@ -36,5 +42,9 @@ export class LoginPage {
   async expectErrorMessage(message: string) {
     await expect(this.errorMessage).toBeVisible();
     await expect(this.errorMessage).toContainText(message);
+  }
+
+  async expectFieldError() {
+    await expect(this.fieldError).toBeVisible();
   }
 }

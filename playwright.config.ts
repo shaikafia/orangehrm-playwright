@@ -1,41 +1,43 @@
 import { defineConfig, devices } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import { AUTH_CONFIG } from './tests/utils/constants';
 
 const env = process.env.TEST_ENV || 'dev';
 const testDataPath = path.resolve(__dirname, 'config', `testdata.${env}.json`);
 const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
 
 export default defineConfig({
-  // No globalSetup needed — each test group logs in fresh via beforeEach.
+  globalSetup: require.resolve('./tests/global-setup'),
   testDir: './tests',
   snapshotDir: './tests/snapshots',
+  timeout: 60_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1,
-  timeout: testData.navigationTimeout,
+  workers: testData.workers,
   reporter: process.env.CI
-    ? [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]]
+    ? [['line'], ['junit', { outputFile: 'test-results/junit.xml' }], ['html', { open: 'never' }]]
     : 'html',
   use: {
     baseURL: testData.baseUrl,
     trace: 'on-first-retry',
+    navigationTimeout: testData.navigationTimeout,
+    actionTimeout:     testData.loginTimeout,
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-    headless: false,
-    // NO storageState here — the demo site rejects saved sessions instantly.
-    // Each authenticated describe block logs in fresh via beforeEach instead.
+    video:      'retain-on-failure',
+    headless:     testData.HEADLESS,   // controlled by testdata — not hardcoded
+    storageState: AUTH_CONFIG.path,    // AUTH_CONFIG from constants — not hardcoded
   },
   expect: {
     toHaveScreenshot: {
-      maxDiffPixels: 100,
-      maxDiffPixelRatio: 0.01,
-      threshold: 0.2,
+      maxDiffPixels:     testData.visualThresholds.maxDiffPixels,
+      maxDiffPixelRatio: testData.visualThresholds.maxDiffPixelRatio,
+      threshold:         testData.visualThresholds.threshold,
       animations: 'disabled',
     },
     toMatchSnapshot: {
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: testData.visualThresholds.maxDiffPixelRatio,
     },
   },
   projects: [
