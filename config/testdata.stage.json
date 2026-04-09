@@ -39,11 +39,14 @@
     "pim": "pim",
     "leave": "leave",
     "admin": "admin",
-    "myInfo": "myInfo|viewPersonalDetails"
+    "myInfo": "myInfo|viewPersonalDetails",
+    "dashboard": "dashboard/index",
+    "addEmployee": "addEmployee"
   },
   "visualThresholds": {
     "maxDiffPixels": 100,
     "maxDiffPixelRatio": 0.01,
     "threshold": 0.2
-  }
+  },
+  "HEADLESS": false
 }

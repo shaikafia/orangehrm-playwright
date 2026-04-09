@@ -1,5 +1,14 @@
 import { type Page, type Locator, expect } from '@playwright/test';
-import { TIMEOUTS, PAGE_HEADINGS, NAV_LABELS } from '../utils/constants';
+import fs from 'fs';
+import path from 'path';
+import { TIMEOUTS, PAGE_HEADINGS, NAV_LABELS, SELECTORS } from '../utils/constants';
+
+function getLeaveUrls(): { applyLeave: string; leaveList: string; myLeave: string } {
+  const env = process.env.TEST_ENV || 'dev';
+  const testDataPath = path.resolve(__dirname, '..', '..', 'config', `testdata.${env}.json`);
+  const { urls } = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+  return { applyLeave: urls.applyLeave, leaveList: urls.leaveList, myLeave: urls.myLeave };
+}
 
 export class LeavePage {
   readonly pageHeading: Locator;
@@ -11,18 +20,17 @@ export class LeavePage {
   readonly tableRows: Locator;
 
   constructor(private readonly page: Page) {
-    this.pageHeading = page.getByRole('heading', { name: PAGE_HEADINGS.applyLeave });
-    this.leaveTypeDropdown = page.locator('.oxd-select-text').first();
-    this.applyButton = page.getByRole('button', { name: NAV_LABELS.apply });
-    this.successToast = page.locator('.oxd-toast-content--success');
-    this.errorToast = page.locator('.oxd-toast-content--error');
-    this.tableBody = page.locator('.oxd-table-body');
-    this.tableRows = page.locator('.oxd-table-row--with-border');
+    this.pageHeading       = page.getByRole('heading', { name: PAGE_HEADINGS.applyLeave });
+    this.leaveTypeDropdown = page.locator(SELECTORS.leaveTypeDropdown).first();
+    this.applyButton       = page.getByRole('button', { name: NAV_LABELS.apply });
+    this.successToast      = page.locator(SELECTORS.successToast);
+    this.errorToast        = page.locator(SELECTORS.errorToast);
+    this.tableBody         = page.locator(SELECTORS.tableBody);
+    this.tableRows         = page.locator(SELECTORS.tableRow);
   }
 
   async gotoApplyLeave() {
-    // No URL argument — navigates to apply leave path directly
-    await this.page.goto('/web/index.php/leave/applyLeave', { waitUntil: 'domcontentloaded' });
+    await this.page.goto(getLeaveUrls().applyLeave, { waitUntil: 'domcontentloaded' });
     await this.isLoaded();
   }
 
@@ -31,21 +39,18 @@ export class LeavePage {
   }
 
   async gotoLeaveList() {
-    // No URL argument — navigates to leave list path directly
-    await this.page.goto('/web/index.php/leave/viewLeaveList', { waitUntil: 'domcontentloaded' });
+    await this.page.goto(getLeaveUrls().leaveList, { waitUntil: 'domcontentloaded' });
     await this.isLeaveListLoaded();
   }
 
   async isLeaveListLoaded() {
-    // exact: true — multiple 'Leave' links exist in sidebar + topbar
     await expect(
       this.page.getByRole('link', { name: NAV_LABELS.leave, exact: true })
     ).toBeVisible({ timeout: TIMEOUTS.standard });
   }
 
   async gotoMyLeave() {
-    // No URL argument — navigates to my leave list path directly
-    await this.page.goto('/web/index.php/leave/viewMyLeaveList', { waitUntil: 'domcontentloaded' });
+    await this.page.goto(getLeaveUrls().myLeave, { waitUntil: 'domcontentloaded' });
     await this.isLeaveListLoaded();
   }
 
@@ -55,13 +60,13 @@ export class LeavePage {
   }
 
   async setFromDate(date: string) {
-    const fromDateInput = this.page.locator('.oxd-date-input input').first();
+    const fromDateInput = this.page.locator(SELECTORS.dateInput).first();
     await fromDateInput.fill(date);
     await fromDateInput.press('Enter');
   }
 
   async setToDate(date: string) {
-    const toDateInput = this.page.locator('.oxd-date-input input').nth(1);
+    const toDateInput = this.page.locator(SELECTORS.dateInput).nth(1);
     await toDateInput.fill(date);
     await toDateInput.press('Enter');
   }

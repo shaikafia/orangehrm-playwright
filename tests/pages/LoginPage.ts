@@ -1,5 +1,13 @@
 import { type Page, type Locator, expect } from '@playwright/test';
-import { TIMEOUTS } from '../utils/constants';
+import fs from 'fs';
+import path from 'path';
+import { TIMEOUTS, NAV_LABELS, SELECTORS } from '../utils/constants';
+
+function getLoginUrl(): string {
+  const env = process.env.TEST_ENV || 'dev';
+  const testDataPath = path.resolve(__dirname, '..', '..', 'config', `testdata.${env}.json`);
+  return JSON.parse(fs.readFileSync(testDataPath, 'utf8')).urls.login;
+}
 
 export class LoginPage {
   readonly usernameInput: Locator;
@@ -11,15 +19,13 @@ export class LoginPage {
   constructor(private readonly page: Page) {
     this.usernameInput = page.getByPlaceholder('Username');
     this.passwordInput = page.getByPlaceholder('Password');
-    this.loginButton = page.getByRole('button', { name: 'Login' });
-    this.errorMessage = page.locator('.oxd-alert-content-text');
-    // Field-level required error (used in TC-05 and TC-06)
-    this.fieldError = page.locator('.oxd-input-field-error-message').first();
+    this.loginButton   = page.getByRole('button', { name: NAV_LABELS.login });
+    this.errorMessage  = page.locator(SELECTORS.alertText);
+    this.fieldError    = page.locator(SELECTORS.fieldError).first();
   }
 
   async goto() {
-    // No URL argument — baseURL is set in playwright.config.ts, page goes to login path
-    await this.page.goto('/web/index.php/auth/login', { waitUntil: 'domcontentloaded' });
+    await this.page.goto(getLoginUrl(), { waitUntil: 'domcontentloaded' });
     await this.isLoaded();
   }
 

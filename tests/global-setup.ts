@@ -2,31 +2,34 @@ import { chromium, FullConfig } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { LoginPage } from './pages/LoginPage';
+import { AUTH_CONFIG, SELECTORS } from './utils/constants';
 
 async function globalSetup(config: FullConfig) {
   const env = process.env.TEST_ENV || 'dev';
+  console.log('env is: ', env);
+
   const testDataPath = path.resolve(__dirname, '..', 'config', `testdata.${env}.json`);
   const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
 
   const { username, password } = testData.credentials;
   const baseURL = testData.baseUrl;
 
-  const authDirPath  = path.resolve(__dirname, '..', '.auth');
-  const authFilePath = path.join(authDirPath, 'user.json');
+  const authDirPath  = path.resolve(__dirname, '..', AUTH_CONFIG.dir);
+  const authFilePath = path.join(authDirPath, AUTH_CONFIG.file);
 
   const browser = await chromium.launch();
   const page    = await browser.newPage();
 
-  // In global-setup, baseURL is not set via config — navigate using full URL from testdata
-  await page.goto(`${baseURL}${testData.urls.login}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  page.setDefaultNavigationTimeout(testData.navigationTimeout);
+
+  await page.goto(`${baseURL}${testData.urls.login}`, { waitUntil: 'domcontentloaded' });
 
   const loginPage = new LoginPage(page);
   await loginPage.login(username, password);
 
-  // Wait for dashboard topbar to confirm login succeeded
-  await page.waitForSelector('.oxd-topbar-header', { timeout: 60_000 });
 
-  // Confirm we are NOT still on the login page
+  await page.waitForSelector(SELECTORS.topbarHeader, { timeout: testData.navigationTimeout });
+
   const currentUrl = page.url();
   if (currentUrl.includes(testData.urlPatterns.login)) {
     throw new Error(
@@ -41,6 +44,8 @@ async function globalSetup(config: FullConfig) {
 
   await page.context().storageState({ path: authFilePath });
   await browser.close();
+
+  console.log(`Global setup complete — auth state saved to: ${authFilePath}`);
 }
 
 export default globalSetup;

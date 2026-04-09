@@ -2,42 +2,67 @@ import { test } from './fixtures/base';
 import { expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { ERROR_MESSAGES, TEST_PAYLOADS, NAV_LABELS } from './utils/constants';
+import {
+  ERROR_MESSAGES,
+  TEST_PAYLOADS,
+  NAV_LABELS,
+  SELECTORS,
+  SCREENSHOT_PATHS,
+} from './utils/constants';
 
-const env = process.env.TEST_ENV || 'dev';
-const testDataPath = path.resolve(__dirname, '..', 'config', `testdata.${env}.json`);
-const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+function loadTestData() {
+  const env = process.env.TEST_ENV || 'dev';
+  const testDataPath = path.resolve(__dirname, '..', 'config', `testdata.${env}.json`);
+  return JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
+}
 
+const testData = loadTestData();
 const { username, password, invalidUsername, invalidPassword } = testData.credentials;
-const { searchProfiles, urls, urlPatterns, loginTimeout, shortTimeout, navigationTimeout } = testData;
+const { searchProfiles, urls, urlPatterns, loginTimeout, shortTimeout, navigationTimeout } =
+  testData;
 
-/**
- * Logs in fresh before each authenticated test group.
- * Uses loginPage.goto() with no URL argument — baseURL is set in playwright.config.ts.
- * loginTimeout loaded from testdata JSON — not hardcoded.
- */
 async function freshLogin(loginPage: any, page: any) {
+  await page.context().clearCookies();
   await loginPage.goto();
   await loginPage.login(username, password);
-  await expect(page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible({ timeout: loginTimeout });
+  await expect(page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible({
+    timeout: loginTimeout,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
 // LOGIN & NEGATIVE TESTS
 // ─────────────────────────────────────────────────────────────
 test.describe('OrangeHRM - Login & Negative Tests (No Auth) @regression', () => {
-  // Clear authentication state for all login tests — matching sir's pattern
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  // Data-driven invalid login scenarios — matching sir's pattern from saucedemo-purchase.spec.ts
   const invalidLoginScenarios = [
-    { id: 'TC-02', type: 'invalid username',       user: invalidUsername, pass: password,        error: ERROR_MESSAGES.invalidCredentials },
-    { id: 'TC-03', type: 'invalid password',       user: username,        pass: invalidPassword, error: ERROR_MESSAGES.invalidCredentials },
-    { id: 'TC-04', type: 'both invalid credentials', user: invalidUsername, pass: invalidPassword, error: ERROR_MESSAGES.invalidCredentials },
+    {
+      id: 'TC-02',
+      type: 'invalid username',
+      user: invalidUsername,
+      pass: password,
+      error: ERROR_MESSAGES.invalidCredentials,
+    },
+    {
+      id: 'TC-03',
+      type: 'invalid password',
+      user: username,
+      pass: invalidPassword,
+      error: ERROR_MESSAGES.invalidCredentials,
+    },
+    {
+      id: 'TC-04',
+      type: 'both invalid credentials',
+      user: invalidUsername,
+      pass: invalidPassword,
+      error: ERROR_MESSAGES.invalidCredentials,
+    },
   ];
 
   test('[TC-01] @smoke should login successfully with valid credentials', async ({
-    loginPage, dashboardPage,
+    loginPage,
+    dashboardPage,
   }) => {
     await loginPage.goto();
     await loginPage.login(username, password);
@@ -115,30 +140,34 @@ test.describe('OrangeHRM - Employee Management @regression', () => {
   test.beforeEach(async ({ loginPage, page }) => {
     await freshLogin(loginPage, page);
     await page.goto(urls.employeeList, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('.oxd-table-filter')).toBeVisible({ timeout: navigationTimeout });
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: navigationTimeout });
   });
 
   test('[TC-12] @smoke should load employee list page', async ({ employeePage }) => {
     await employeePage.isLoaded();
   });
 
-  test('[TC-13] should show Add Employee form when Add button is clicked', async ({ employeePage }) => {
+  test('[TC-13] should show Add Employee form when Add button is clicked', async ({
+    employeePage,
+  }) => {
     await employeePage.clickAddEmployee();
     await expect(employeePage.firstNameInput).toBeVisible();
     await expect(employeePage.lastNameInput).toBeVisible();
   });
 
-  // Data-driven search — matching sir's pattern from inventory-details.spec.ts
   for (const profile of searchProfiles) {
     test(`[TC-14] @smoke should search employee by name: ${profile.firstName}`, async ({
-      employeePage, page,
+      employeePage,
+      page,
     }) => {
       await employeePage.searchEmployeeByName(profile.firstName);
-      await expect(page.locator('.oxd-table-filter')).toBeVisible({ timeout: navigationTimeout });
+      await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: navigationTimeout });
     });
   }
 
-  test('[TC-15] should show employee table with results on default load', async ({ employeePage }) => {
+  test('[TC-15] should show employee table with results on default load', async ({
+    employeePage,
+  }) => {
     await employeePage.searchButton.click();
     const count = await employeePage.getEmployeeRowCount();
     expect(count).toBeGreaterThan(0);
@@ -180,22 +209,28 @@ test.describe('OrangeHRM - Navigation @regression', () => {
   test('[TC-19] @smoke should navigate to PIM from sidebar', async ({ page }) => {
     await page.getByRole('link', { name: NAV_LABELS.pim }).click();
     await expect(page).toHaveURL(new RegExp(urlPatterns.pim));
-    await expect(page.getByRole('link', { name: NAV_LABELS.employeeList })).toBeVisible({ timeout: navigationTimeout });
+    await expect(page.getByRole('link', { name: NAV_LABELS.employeeList })).toBeVisible({
+      timeout: navigationTimeout,
+    });
   });
 
   test('[TC-20] should navigate to Leave from sidebar', async ({ page }) => {
     await page.getByRole('link', { name: NAV_LABELS.leave, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(urlPatterns.leave));
-    await expect(page.getByRole('link', { name: NAV_LABELS.apply })).toBeVisible({ timeout: navigationTimeout });
+    await expect(page.getByRole('link', { name: NAV_LABELS.apply })).toBeVisible({
+      timeout: navigationTimeout,
+    });
   });
 
   test('[TC-21] should navigate to My Info page', async ({ page }) => {
     await page.getByRole('link', { name: NAV_LABELS.myInfo }).click();
     await expect(page).toHaveURL(new RegExp(urlPatterns.myInfo), { timeout: shortTimeout });
-    await expect(page.getByRole('textbox', { name: NAV_LABELS.firstName })).toBeVisible({ timeout: navigationTimeout });
+    await expect(page.getByRole('textbox', { name: NAV_LABELS.firstName })).toBeVisible({
+      timeout: navigationTimeout,
+    });
   });
 
   test('[TC-22] should take screenshot of dashboard', async ({ page }) => {
-    await page.screenshot({ path: 'test-results/screenshots/dashboard.png', fullPage: true });
+    await page.screenshot({ path: SCREENSHOT_PATHS.dashboard, fullPage: true });
   });
 });

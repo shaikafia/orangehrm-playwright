@@ -1,12 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import { AUTH_CONFIG } from './tests/utils/constants';
 
 const env = process.env.TEST_ENV || 'dev';
 const testDataPath = path.resolve(__dirname, 'config', `testdata.${env}.json`);
 const testData = JSON.parse(fs.readFileSync(testDataPath, 'utf8'));
-
-const headless = testData.HEADLESS;
 
 export default defineConfig({
   globalSetup: require.resolve('./tests/global-setup'),
@@ -23,12 +22,12 @@ export default defineConfig({
   use: {
     baseURL: testData.baseUrl,
     trace: 'on-first-retry',
-    navigationTimeout: 45_000,
-    actionTimeout: 30_000,
+    navigationTimeout: testData.navigationTimeout,
+    actionTimeout:     testData.loginTimeout,
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-    headless: headless,
-    storageState: '.auth/user.json',
+    video:      'retain-on-failure',
+    headless:     testData.HEADLESS,   // controlled by testdata — not hardcoded
+    storageState: AUTH_CONFIG.path,    // AUTH_CONFIG from constants — not hardcoded
   },
   expect: {
     toHaveScreenshot: {

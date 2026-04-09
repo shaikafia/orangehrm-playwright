@@ -1,5 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
-import { NAV_LABELS } from '../utils/constants';
+import { NAV_LABELS, TIMEOUTS, SELECTORS } from '../utils/constants';
 
 export class DashboardPage {
   readonly dashboardHeading: Locator;
@@ -8,16 +8,14 @@ export class DashboardPage {
   readonly userDropdownName: Locator;
 
   constructor(private readonly page: Page) {
-    // NAV_LABELS.dashboard used — not a hardcoded string
     this.dashboardHeading = page.getByRole('heading', { name: NAV_LABELS.dashboard });
-    this.userDropdown = page.locator('.oxd-userdropdown-tab');
-    this.logoutOption = page.getByRole('menuitem', { name: 'Logout' });
-    this.userDropdownName = page.locator('.oxd-userdropdown-name');
+    this.userDropdown     = page.locator(SELECTORS.userDropdown);
+    this.logoutOption     = page.getByRole('menuitem', { name: NAV_LABELS.logout });
+    this.userDropdownName = page.locator(SELECTORS.userDropdownName);
   }
 
   async isLoaded() {
-    // NAV_LABELS.dashboard used — not a hardcoded string
-    await expect(this.page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible();
+    await expect(this.page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible({ timeout: TIMEOUTS.navigation });
   }
 
   async navigateTo(menuItem: string) {

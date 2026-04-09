@@ -1,5 +1,13 @@
 import { type Page, type Locator, expect } from '@playwright/test';
-import { TIMEOUTS, PAGE_HEADINGS } from '../utils/constants';
+import fs from 'fs';
+import path from 'path';
+import { TIMEOUTS, PAGE_HEADINGS, NAV_LABELS, SELECTORS } from '../utils/constants';
+
+function getEmployeeListUrl(): string {
+  const env = process.env.TEST_ENV || 'dev';
+  const testDataPath = path.resolve(__dirname, '..', '..', 'config', `testdata.${env}.json`);
+  return JSON.parse(fs.readFileSync(testDataPath, 'utf8')).urls.employeeList;
+}
 
 export class EmployeePage {
   readonly pageHeading: Locator;
@@ -15,27 +23,26 @@ export class EmployeePage {
   readonly tableRows: Locator;
 
   constructor(private readonly page: Page) {
-    this.pageHeading = page.getByRole('heading', { name: PAGE_HEADINGS.employeeInformation });
-    this.addEmployeeButton = page.getByRole('button', { name: 'Add' });
-    this.firstNameInput = page.locator('input[name="firstName"]');
-    this.lastNameInput = page.locator('input[name="lastName"]');
-    this.employeeIdInput = page.locator('.oxd-input').nth(1);
-    this.saveButton = page.getByRole('button', { name: 'Save' });
-    this.searchButton = page.getByRole('button', { name: 'Search' });
-    this.employeeNameSearchInput = page.locator('.oxd-autocomplete-text-input input').first();
-    this.successToast = page.locator('.oxd-toast-content--success');
-    this.tableBody = page.locator('.oxd-table-body');
-    this.tableRows = page.locator('.oxd-table-row--with-border');
+    this.pageHeading             = page.getByRole('heading', { name: PAGE_HEADINGS.employeeInformation });
+    this.addEmployeeButton       = page.getByRole('button', { name: NAV_LABELS.add });
+    this.firstNameInput          = page.locator('input[name="firstName"]');
+    this.lastNameInput           = page.locator('input[name="lastName"]');
+    this.employeeIdInput         = page.locator(SELECTORS.inputField).nth(1);
+    this.saveButton              = page.getByRole('button', { name: NAV_LABELS.save });
+    this.searchButton            = page.getByRole('button', { name: NAV_LABELS.search });
+    this.employeeNameSearchInput = page.locator(SELECTORS.autocompleteInput).first();
+    this.successToast            = page.locator(SELECTORS.successToast);
+    this.tableBody               = page.locator(SELECTORS.tableBody);
+    this.tableRows               = page.locator(SELECTORS.tableRow);
   }
 
   async goto() {
-    // No URL argument — navigates to employee list path directly
-    await this.page.goto('/web/index.php/pim/viewEmployeeList', { waitUntil: 'domcontentloaded' });
+    await this.page.goto(getEmployeeListUrl(), { waitUntil: 'domcontentloaded' });
     await this.isLoaded();
   }
 
   async isLoaded() {
-    await expect(this.page.locator('.oxd-table-filter')).toBeVisible({ timeout: TIMEOUTS.standard });
+    await expect(this.page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: TIMEOUTS.navigation });
   }
 
   async clickAddEmployee() {
@@ -63,7 +70,7 @@ export class EmployeePage {
   }
 
   async getEmployeeRowCount(): Promise<number> {
-    await expect(this.tableBody).toBeVisible();
+    await expect(this.tableRows.first()).toBeVisible({ timeout: TIMEOUTS.navigation });
     return await this.tableRows.count();
   }
 

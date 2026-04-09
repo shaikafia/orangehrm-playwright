@@ -14,13 +14,11 @@ export const SUCCESS_MESSAGES = {
   leaveApplied: 'Successfully Saved',
 };
 
-// Security test payloads — centralised so spec file contains no hardcoded attack strings
 export const TEST_PAYLOADS = {
   xss: '<script>alert("xss")</script>',
   sql: "' OR '1'='1",
 };
 
-// Navigation labels used in assertions — centralised to avoid hardcoding in spec
 export const NAV_LABELS = {
   apply: 'Apply',
   employeeList: 'Employee List',
@@ -29,17 +27,48 @@ export const NAV_LABELS = {
   pim: 'PIM',
   leave: 'Leave',
   myInfo: 'My Info',
+  login: 'Login',      
+  logout: 'Logout',    
+  add: 'Add',          
+  save: 'Save',        
+  search: 'Search',    
 };
 
-// Page heading text used in assertions — centralised to avoid hardcoding in page objects
 export const PAGE_HEADINGS = {
   applyLeave: 'Apply Leave',
   employeeInformation: 'Employee Information',
 };
 
-// Timeouts used inside Page Object methods — centralised so a single change updates all pages
+export const AUTH_CONFIG = {
+  dir: '.auth',
+  file: 'user.json',
+  path: '.auth/user.json',
+};
+
+export const SELECTORS = {
+  topbarHeader:      '.oxd-topbar-header',
+  tableFilter:       '.oxd-table-filter',
+  tableBody:         '.oxd-table-body',
+  tableRow:          '.oxd-table-row--with-border',
+  successToast:      '.oxd-toast-content--success',
+  errorToast:        '.oxd-toast-content--error',
+  userDropdown:      '.oxd-userdropdown-tab',
+  userDropdownName:  '.oxd-userdropdown-name',
+  alertText:         '.oxd-alert-content-text',
+  fieldError:        '.oxd-input-field-error-message',
+  leaveTypeDropdown: '.oxd-select-text',
+  autocompleteInput: '.oxd-autocomplete-text-input input',
+  dateInput:         '.oxd-date-input input',
+  inputField:        '.oxd-input',
+};
+
+export const SCREENSHOT_PATHS = {
+  dashboard: 'test-results/screenshots/dashboard.png',
+};
+
 export const TIMEOUTS = {
-  login: 30000,       // Timeout for login page elements (login can be slow on demo site)
-  standard: 15000,    // Default wait for elements to become visible
-  autocomplete: 1000, // Short pause for autocomplete dropdowns to fetch from server
+  login: 30000,
+  navigation: 60000,
+  standard: 15000,
+  autocomplete: 1000,
 };
