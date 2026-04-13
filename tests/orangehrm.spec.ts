@@ -2,6 +2,7 @@ import { test } from './fixtures/base';
 import { expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import { faker } from '@faker-js/faker';
 import {
   ERROR_MESSAGES,
   TEST_PAYLOADS,
@@ -150,9 +151,18 @@ test.describe('OrangeHRM - Employee Management @regression', () => {
   test('[TC-13] should show Add Employee form when Add button is clicked', async ({
     employeePage,
   }) => {
+    const firstName = faker.person.firstName();
+    const lastName = faker.person.lastName();
+
     await employeePage.clickAddEmployee();
+
     await expect(employeePage.firstNameInput).toBeVisible();
     await expect(employeePage.lastNameInput).toBeVisible();
+
+    await employeePage.fillEmployeeDetails(firstName, lastName);
+
+    await expect(employeePage.firstNameInput).toHaveValue(firstName);
+    await expect(employeePage.lastNameInput).toHaveValue(lastName);
   });
 
   for (const profile of searchProfiles) {

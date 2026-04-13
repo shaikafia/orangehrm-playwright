@@ -27,11 +27,11 @@ export const NAV_LABELS = {
   pim: 'PIM',
   leave: 'Leave',
   myInfo: 'My Info',
-  login: 'Login',      
-  logout: 'Logout',    
-  add: 'Add',          
-  save: 'Save',        
-  search: 'Search',    
+  login: 'Login',
+  logout: 'Logout',
+  add: 'Add',
+  save: 'Save',
+  search: 'Search',
 };
 
 export const PAGE_HEADINGS = {
@@ -51,22 +51,22 @@ export const PLACEHOLDERS = {
 };
 
 export const SELECTORS = {
-  topbarHeader:      '.oxd-topbar-header',
-  tableFilter:       '.oxd-table-filter',
-  tableBody:         '.oxd-table-body',
-  tableRow:          '.oxd-table-row--with-border',
-  successToast:      '.oxd-toast-content--success',
-  errorToast:        '.oxd-toast-content--error',
-  userDropdown:      '.oxd-userdropdown-tab',
-  userDropdownName:  '.oxd-userdropdown-name',
-  alertText:         '.oxd-alert-content-text',
-  fieldError:        '.oxd-input-field-error-message',
+  topbarHeader: '.oxd-topbar-header',
+  tableFilter: '.oxd-table-filter',
+  tableBody: '.oxd-table-body',
+  tableRow: '.oxd-table-row--with-border',
+  successToast: '.oxd-toast-content--success',
+  errorToast: '.oxd-toast-content--error',
+  userDropdown: '.oxd-userdropdown-tab',
+  userDropdownName: '.oxd-userdropdown-name',
+  alertText: '.oxd-alert-content-text',
+  fieldError: '.oxd-input-field-error-message',
   leaveTypeDropdown: '.oxd-select-text',
   autocompleteInput: '.oxd-autocomplete-text-input input',
-  dateInput:         '.oxd-date-input input',
-  inputField:        '.oxd-input',
-  firstNameInput:    'input[name="firstName"]',
-  lastNameInput:     'input[name="lastName"]',
+  dateInput: '.oxd-date-input input',
+  inputField: '.oxd-input',
+  firstNameInput: 'input[name="firstName"]',
+  lastNameInput: 'input[name="lastName"]',
 };
 
 export const SCREENSHOT_PATHS = {
