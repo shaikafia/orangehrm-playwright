@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './fixtures/base';
 import fs from 'fs';
 import path from 'path';
-import { NAV_LABELS, SELECTORS } from './utils/constants';
+import { NAV_LABELS, SELECTORS, TEST_PAYLOADS } from './utils/constants';
 
 function loadTestData() {
   const env = process.env.TEST_ENV || 'dev';
@@ -17,32 +17,48 @@ async function freshLogin(loginPage: any, page: any) {
   await page.context().clearCookies();
   await loginPage.goto();
   await loginPage.login(username, password);
-  await expect(page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible({ timeout: testData.loginTimeout });
+  await expect(page.getByRole('link', { name: NAV_LABELS.dashboard })).toBeVisible({
+    timeout: testData.loginTimeout,
+  });
 }
 
 test.describe('OrangeHRM - Employee Search Details @regression', () => {
-
   test.beforeEach(async ({ loginPage, page }) => {
     await freshLogin(loginPage, page);
     await page.goto(testData.urls.employeeList, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: testData.navigationTimeout });
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({
+      timeout: testData.navigationTimeout,
+    });
   });
 
-  test('[TC-28] should show results when searching by first name', async ({ employeePage, page }) => {
+  test('[TC-28] should show results when searching by first name', async ({
+    employeePage,
+    page,
+  }) => {
     const profile = testData.searchProfiles[0];
     await employeePage.searchEmployeeByName(profile.firstName);
-    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: testData.navigationTimeout });
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({
+      timeout: testData.navigationTimeout,
+    });
     const count = await employeePage.getEmployeeRowCount();
     expect(count).toBeGreaterThan(0);
   });
 
-  test('[TC-29] should show results when searching by first name for second profile', async ({ employeePage, page }) => {
+  test('[TC-29] should show results when searching by first name for second profile', async ({
+    employeePage,
+    page,
+  }) => {
     const profile = testData.searchProfiles[1];
     await employeePage.searchEmployeeByName(profile.firstName);
-    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: testData.navigationTimeout });
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({
+      timeout: testData.navigationTimeout,
+    });
   });
 
-  test('[TC-30] should show Add Employee form with first and last name fields visible', async ({ employeePage, page }) => {
+  test('[TC-30] should show Add Employee form with first and last name fields visible', async ({
+    employeePage,
+    page,
+  }) => {
     await employeePage.clickAddEmployee();
     await expect(employeePage.firstNameInput).toBeVisible();
     await expect(employeePage.lastNameInput).toBeVisible();
@@ -50,10 +66,45 @@ test.describe('OrangeHRM - Employee Search Details @regression', () => {
     await expect(page).toHaveURL(new RegExp(testData.urlPatterns.addEmployee ?? 'addEmployee'));
   });
 
-  test('[TC-31] should return to employee list with results after clicking Search with no filters', async ({ employeePage, page }) => {
+  test('[TC-31] should return to employee list with results after clicking Search with no filters', async ({
+    employeePage,
+    page,
+  }) => {
     await employeePage.searchButton.click();
-    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({ timeout: testData.navigationTimeout });
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({
+      timeout: testData.navigationTimeout,
+    });
     const count = await employeePage.getEmployeeRowCount();
     expect(count).toBeGreaterThan(0);
+  });
+
+  test('[TC-32] should handle SQL injection in employee name search safely @security', async ({
+    employeePage,
+    page,
+  }) => {
+    test.setTimeout(120000);
+    await employeePage.searchEmployeeByName(TEST_PAYLOADS.sql);
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({
+      timeout: testData.navigationTimeout,
+    });
+    // Should not crash or return all records; expect safe handling
+    const count = await employeePage.getEmployeeRowCount();
+    expect(count).toBeLessThan(100); // Arbitrary limit to check not all records returned
+  });
+
+  test('[TC-33] should handle XSS injection in employee name search safely @security', async ({
+    employeePage,
+    page,
+  }) => {
+    test.setTimeout(120000);
+    let xssExecuted = false;
+    page.on('dialog', () => {
+      xssExecuted = true;
+    });
+    await employeePage.searchEmployeeByName(TEST_PAYLOADS.xss);
+    await expect(page.locator(SELECTORS.tableFilter)).toBeVisible({
+      timeout: testData.navigationTimeout,
+    });
+    expect(xssExecuted).toBe(false); // XSS should not execute
   });
 });

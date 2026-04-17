@@ -17,6 +17,10 @@ export const SUCCESS_MESSAGES = {
 export const TEST_PAYLOADS = {
   xss: '<script>alert("xss")</script>',
   sql: "' OR '1'='1",
+  commandInjection: '; rm -rf /',
+  pathTraversal: '../../../etc/passwd',
+  largeInput: 'A'.repeat(10000),
+  specialChars: '!@#$%^&*()_+{}|:<>?[]\\;\'",./',
 };
 
 export const NAV_LABELS = {

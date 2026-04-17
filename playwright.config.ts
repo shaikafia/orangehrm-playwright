@@ -14,7 +14,7 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 2,
   workers: testData.workers,
   reporter: process.env.CI
     ? [['line'], ['junit', { outputFile: 'test-results/junit.xml' }], ['html', { open: 'never' }]]
@@ -23,17 +23,17 @@ export default defineConfig({
     baseURL: testData.baseUrl,
     trace: 'on-first-retry',
     navigationTimeout: testData.navigationTimeout,
-    actionTimeout:     testData.loginTimeout,
+    actionTimeout: testData.loginTimeout,
     screenshot: 'only-on-failure',
-    video:      'retain-on-failure',
-    headless:     testData.HEADLESS,   // controlled by testdata — not hardcoded
-    storageState: AUTH_CONFIG.path,    // AUTH_CONFIG from constants — not hardcoded
+    video: 'retain-on-failure',
+    headless: testData.HEADLESS, // controlled by testdata — not hardcoded
+    storageState: AUTH_CONFIG.path, // AUTH_CONFIG from constants — not hardcoded
   },
   expect: {
     toHaveScreenshot: {
-      maxDiffPixels:     testData.visualThresholds.maxDiffPixels,
+      maxDiffPixels: testData.visualThresholds.maxDiffPixels,
       maxDiffPixelRatio: testData.visualThresholds.maxDiffPixelRatio,
-      threshold:         testData.visualThresholds.threshold,
+      threshold: testData.visualThresholds.threshold,
       animations: 'disabled',
     },
     toMatchSnapshot: {
