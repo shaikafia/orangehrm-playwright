@@ -35,7 +35,7 @@ export class LeavePage {
   }
 
   async isLoaded() {
-    await expect(this.pageHeading).toBeVisible({ timeout: TIMEOUTS.standard });
+    await expect(this.pageHeading).toBeVisible({ timeout: TIMEOUTS.navigation });
   }
 
   async gotoLeaveList() {
@@ -45,8 +45,8 @@ export class LeavePage {
 
   async isLeaveListLoaded() {
     await expect(
-      this.page.getByRole('link', { name: NAV_LABELS.leave, exact: true })
-    ).toBeVisible({ timeout: TIMEOUTS.standard });
+      this.page.locator(SELECTORS.tableFilter)
+    ).toBeVisible({ timeout: TIMEOUTS.navigation });
   }
 
   async gotoMyLeave() {
