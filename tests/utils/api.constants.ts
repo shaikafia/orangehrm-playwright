@@ -29,3 +29,11 @@ export const API = {
     POST_RESPONSE: 3000,
   },
 };
+export const NASA_API = {
+  BASE_URL: 'https://api.nasa.gov',
+  API_KEY: 'DEMO_KEY',  // free key for testing, no signup needed
+  ENDPOINTS: {
+    APOD: '/planetary/apod',       // Astronomy Picture of the Day
+    MARS_PHOTOS: '/mars-photos/api/v1/rovers/curiosity/photos',
+  }
+};
