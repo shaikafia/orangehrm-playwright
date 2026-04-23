@@ -25,8 +25,8 @@ export class EmployeePage {
   constructor(private readonly page: Page) {
     this.pageHeading             = page.getByRole('heading', { name: PAGE_HEADINGS.employeeInformation });
     this.addEmployeeButton       = page.getByRole('button', { name: NAV_LABELS.add });
-    this.firstNameInput          = page.locator('input[name="firstName"]');
-    this.lastNameInput           = page.locator('input[name="lastName"]');
+    this.firstNameInput          = page.locator(SELECTORS.firstNameInput);
+    this.lastNameInput           = page.locator(SELECTORS.lastNameInput);
     this.employeeIdInput         = page.locator(SELECTORS.inputField).nth(1);
     this.saveButton              = page.getByRole('button', { name: NAV_LABELS.save });
     this.searchButton            = page.getByRole('button', { name: NAV_LABELS.search });

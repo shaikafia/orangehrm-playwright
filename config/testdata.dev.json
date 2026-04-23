@@ -3,8 +3,8 @@
   "navigationTimeout": 60000,
   "loginTimeout": 30000,
   "shortTimeout": 10000,
-  "workers": 1,
-  "HEADLESS": false,
+  "workers": 2,
+  "HEADLESS": true,
   "credentials": {
     "username": "Admin",
     "password": "admin123",

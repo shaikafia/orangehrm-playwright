@@ -22,11 +22,23 @@ async function globalSetup(config: FullConfig) {
 
   page.setDefaultNavigationTimeout(testData.navigationTimeout);
 
-  await page.goto(`${baseURL}${testData.urls.login}`, { waitUntil: 'domcontentloaded' });
+  // Retry navigation up to 3 times — demo site can be slow to respond
+  let loginLoaded = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await page.goto(`${baseURL}${testData.urls.login}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('input[placeholder="Username"]', { timeout: 15000 });
+      loginLoaded = true;
+      break;
+    } catch {
+      console.log(`Login page load attempt ${attempt} failed, retrying...`);
+      await page.waitForTimeout(3000);
+    }
+  }
+  if (!loginLoaded) throw new Error('Global setup failed: Could not load login page after 3 attempts');
 
   const loginPage = new LoginPage(page);
   await loginPage.login(username, password);
-
 
   await page.waitForSelector(SELECTORS.topbarHeader, { timeout: testData.navigationTimeout });
 
