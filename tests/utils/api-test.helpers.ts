@@ -1,34 +1,59 @@
 /**
  * API Test Helpers
- * Contains utility functions for URL building, validation, and response assertions
+ * Contains utility functions for URL building, validation, and response assertions.
+ *
+ * UPDATED: buildApiUrl now accepts an optional 4th parameter `baseUrl`.
+ * This lets api3.spec.ts (REST Countries) and api4.spec.ts (Open Meteo) pass
+ * their own base URL instead of always defaulting to the OrangeHRM base URL.
+ * All existing OrangeHRM tests keep working because the 4th param is optional.
  */
 
 import { API } from './api.constants';
 
 /**
- * Build a complete API URL with optional ID and query parameters
- * @param endpoint - API endpoint from API.ENDPOINTS
- * @param id - Optional resource ID
- * @param queryParams - Optional query string (e.g., "?limit=5&offset=0")
- * @returns Complete API URL
+ * Build a complete API URL with optional ID, query parameters, and base URL.
+ *
+ * @param endpoint    - API endpoint path, e.g. "/pim/employees" or "/name"
+ * @param id          - Optional resource ID or path segment, e.g. 7 or "US"
+ * @param queryParams - Optional query string, e.g. "?limit=5&offset=0"
+ * @param baseUrl     - Optional base URL override (defaults to OrangeHRM BASE_URL)
+ * @returns Complete API URL string
+ *
+ * Examples:
+ *   buildApiUrl(API.ENDPOINTS.EMPLOYEES, undefined, '?limit=5')
+ *   → "https://...orangehrm.../pim/employees?limit=5"
+ *
+ *   buildApiUrl(API3.ENDPOINTS.ALPHA, 'US', undefined, API3.BASE_URL)
+ *   → "https://restcountries.com/v3.1/alpha/US"
+ *
+ *   buildApiUrl(API4.ENDPOINTS.ELEVATION, undefined, '?latitude=40&longitude=-74', API4.BASE_URL)
+ *   → "https://api.open-meteo.com/v1/elevation?latitude=40&longitude=-74"
  */
 export const buildApiUrl = (
   endpoint: string,
   id?: string | number,
-  queryParams?: string
+  queryParams?: string,
+  baseUrl?: string          // ← NEW optional 4th parameter
 ): string => {
-  let url = `${API.BASE_URL}${endpoint}`;
+  // Use the provided baseUrl, or fall back to OrangeHRM BASE_URL
+  const base = baseUrl ?? API.BASE_URL;
+  let url = `${base}${endpoint}`;
+
   if (id !== undefined) {
     url += `/${id}`;
   }
+
   if (queryParams) {
     url += queryParams.startsWith('?') ? queryParams : `?${queryParams}`;
   }
+
   return url;
 };
 
 /**
- * Validate paginated list response structure (OrangeHRM API format)
+ * Validate paginated list response structure (OrangeHRM API format).
+ * OrangeHRM wraps list results in: { data: [...], meta: { total: N } }
+ *
  * @param data - Response body from a list endpoint
  * @returns true if valid list structure
  */
@@ -41,7 +66,9 @@ export const validateListResponse = (data: any): boolean => {
 };
 
 /**
- * Validate a single OrangeHRM employee structure
+ * Validate a single OrangeHRM employee structure.
+ * Checks field existence AND correct TypeScript types.
+ *
  * @param data - Employee object from response
  * @returns true if valid employee structure
  */
@@ -54,7 +81,8 @@ export const validateEmployeeStructure = (data: any): boolean => {
 };
 
 /**
- * Validate OrangeHRM auth token response (after login)
+ * Validate OrangeHRM auth token response (after login).
+ *
  * @param data - Response body from login endpoint
  * @returns true if valid token structure
  */
@@ -66,12 +94,13 @@ export const validateAuthTokenResponse = (data: any): boolean => {
 };
 
 /**
- * Validate error response structure
+ * Validate error response structure (OrangeHRM 4xx responses).
+ * OrangeHRM returns: { error: { status: "422", message: "..." } }
+ *
  * @param data - Error response object
  * @returns true if valid OrangeHRM error structure
  */
 export const validateErrorResponse = (data: any): boolean => {
-  // OrangeHRM returns { error: { status: "...", message: "..." } } on 4xx
   return (
     typeof data.error === 'object' &&
     data.error !== null &&
@@ -80,7 +109,8 @@ export const validateErrorResponse = (data: any): boolean => {
 };
 
 /**
- * Validate leave type structure
+ * Validate leave type structure.
+ *
  * @param data - Leave type object from response
  * @returns true if valid leave type structure
  */
@@ -93,7 +123,8 @@ export const validateLeaveTypeStructure = (data: any): boolean => {
 };
 
 /**
- * Validate user structure (admin/users endpoint)
+ * Validate user structure (admin/users endpoint).
+ *
  * @param data - User object from response
  * @returns true if valid user structure
  */
