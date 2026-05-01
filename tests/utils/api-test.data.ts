@@ -72,3 +72,40 @@ export const createInvalidLoginPayload = () => ({
   username: TEST_ADMIN_CREDENTIALS.VALID_USERNAME,
   // password deliberately omitted
 });
+/**
+ * Factory: Create an employee with special characters (edge case testing)
+ */
+export const createSpecialCharacterEmployee = () => ({
+  firstName: 'Test@User#123',
+  middleName: '',
+  lastName: 'Dev & Tester',
+  employeeId: '',
+});
+
+/**
+ * Factory: Create an employee with very long field values (buffer limit testing)
+ */
+export const createLongDataEmployee = () => ({
+  firstName: 'A'.repeat(255),
+  middleName: '',
+  lastName: 'B'.repeat(255),
+  employeeId: '',
+});
+
+/**
+ * Factory: Create updated employee data (for PUT requests)
+ */
+export const createUpdatedEmployee = (overrides?: Partial<any>) => ({
+  firstName: 'Updated',
+  middleName: '',
+  lastName: 'Employee',
+  employeeId: '',
+  ...overrides,
+});
+
+/**
+ * Factory: Create partial update data (for PATCH requests)
+ */
+export const createPartialUpdateData = () => ({
+  firstName: 'PatchedFirst',
+});
