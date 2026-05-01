@@ -12,14 +12,7 @@ import { TEST_EMPLOYEE_IDS, TEST_PAGINATION, TEST_TIMEOUTS } from './utils/api-t
 // import { TEST_PAYLOADS } from './utils/constants';
 
 test.describe('OrangeHRM API Testing @regression', () => {
-  // ============================================================================
-  // Authentication Endpoints @critical
-  // NOTE: The OrangeHRM demo server does not expose a public /auth/login API endpoint.
-  // REPLACED: Original tests used /auth/login which returns 404 on the demo server.
-  // New tests validate session-based authentication by hitting real working endpoints
-  // both with and without session cookies.
-  // ============================================================================
-
+  
   test.describe('Authentication Endpoints @critical', () => {
     test('GET - Authenticated request to employees succeeds with session cookie', async ({
       apiRequest,

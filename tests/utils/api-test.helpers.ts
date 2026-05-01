@@ -136,3 +136,51 @@ export const validateUserStructure = (data: any): boolean => {
     typeof data.status === 'object'
   );
 };
+/**
+ * Validate email format using regex
+ * @param email - Email address to validate
+ * @returns true if valid email format
+ */
+export const validateEmailFormat = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+/**
+ * Validate ISO date string format
+ * @param dateString - Date string to validate
+ * @returns true if valid ISO date format
+ */
+export const validateISODateFormat = (dateString: string): boolean => {
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date.getTime());
+};
+
+/**
+ * Validate created user response structure (for POST responses)
+ * @param data - User object from POST response
+ * @returns true if valid created user structure
+ */
+export const validateCreatedUserStructure = (data: any): boolean => {
+  return (
+    typeof data.id === 'string' &&
+    typeof data.name === 'string' &&
+    typeof data.job === 'string' &&
+    typeof data.createdAt === 'string'
+  );
+};
+
+/**
+ * Validate resource response structure (for /unknown endpoint on ReqRes)
+ * @param data - Resource object from response
+ * @returns true if valid resource structure
+ */
+export const validateResourceStructure = (data: any): boolean => {
+  return (
+    typeof data.id === 'number' &&
+    typeof data.name === 'string' &&
+    typeof data.year === 'number' &&
+    typeof data.color === 'string' &&
+    typeof data.pantone_value === 'string'
+  );
+};
