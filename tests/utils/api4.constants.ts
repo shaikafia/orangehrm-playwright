@@ -1,22 +1,57 @@
 /**
- * API Configuration Constants for REST Countries
- * Contains base URL, endpoints, and timeout configurations for the REST Countries API
- * No authentication required - this is a free public API for testing
+ * API6 Configuration Constants — DummyJSON JWT Authentication
+ *
+ * DummyJSON is the only free public API in this project that returns
+ * a REAL JWT token — three base64url parts separated by dots:
+ *   header.payload.signature
+ *
+ * Authentication flow:
+ *   POST /auth/login  →  { token, refreshToken, id, username, ... }
+ *   GET  /auth/me     →  protected endpoint, requires Bearer token
+ *   POST /auth/refresh →  exchange refreshToken for a new access token
+ *
+ * Compare with OrangeHRM (api.fixtures.ts):
+ *   OrangeHRM → session cookies (no REST login endpoint on demo)
+ *   DummyJSON → JWT Bearer token (POST login → get token → attach header)
  */
 
-export const API4 = {
-  BASE_URL: 'https://restcountries.com/v3.1',
+export const DUMMYJSON_JWT = {
+  BASE_URL: 'https://dummyjson.com',
+
   ENDPOINTS: {
-    ALL: '/all',
-    NAME: '/name',
-    ALPHA: '/alpha',
-    CURRENCY: '/currency',
-    LANGUAGE: '/lang',
-    CAPITAL: '/capital',
-    REGION: '/region',
+    // ── Auth (the JWT-specific endpoints) ───────────────────────────────────
+    LOGIN:   '/auth/login',     // POST — returns token + refreshToken (real JWTs)
+    ME:      '/auth/me',        // GET  — ONLY works with valid Bearer token → 401 without it
+    REFRESH: '/auth/refresh',   // POST — exchange refreshToken for new access token
+
+    // ── Products ────────────────────────────────────────────────────────────
+    PRODUCTS:        '/products',
+    PRODUCT_BY_ID:   '/products',       // buildApiUrl appends /{id}
+    PRODUCTS_ADD:    '/products/add',
+    PRODUCTS_SEARCH: '/products/search',
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    USERS:      '/users',
+    USER_BY_ID: '/users',               // buildApiUrl appends /{id}
+
+    // ── Carts ────────────────────────────────────────────────────────────────
+    CARTS:          '/carts',
+    CART_BY_ID:     '/carts',
+    CARTS_USER:     '/carts/user',      // GET /carts/user/{userId}
+
+    // ── Posts ────────────────────────────────────────────────────────────────
+    POSTS:       '/posts',
+    POST_BY_ID:  '/posts',
+    POSTS_SEARCH: '/posts/search',
+
+    // ── Todos ────────────────────────────────────────────────────────────────
+    TODOS:          '/todos',
+    TODO_BY_ID:     '/todos',
+    TODOS_USER:     '/todos/user',      // GET /todos/user/{userId}
   },
+
   TIMEOUTS: {
-    GET_RESPONSE: 5000,
-    POST_RESPONSE: 3000,
+    RESPONSE_TIME: 5000,    // 5 seconds — max acceptable round-trip
+    LOGIN_TIME:    3000,    // 3 seconds — max acceptable login time
   },
 };
