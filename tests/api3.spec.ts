@@ -1,283 +1,658 @@
-/**
- * API4 Test Suite — Open Meteo Weather API
- *
- * Open Meteo is a free, open-source weather API that requires NO authentication.
- * It returns real forecast, historical, and elevation data in JSON format.
- *
- * All tests follow the exact same structure as api3.spec.ts (REST Countries)
- * so the codebase is consistent and easy to maintain.
- *
- * Base URL: https://api.open-meteo.com/v1
- * Docs:     https://open-meteo.com/en/docs
- */
-
-import { test } from './utils/api3.fixtures';
 import { expect } from '@playwright/test';
 import { API4 } from './utils/api3.constants';
-import { TEST_DATA4, QUERY_PARAMS4 } from './utils/api3-test.data';
+import { buildApiUrl } from './utils/api-test.helpers';
+import {
+  TEST_DATA,
+  QUERY_PARAMS,
+} from './utils/api3-testdata';
+import { createApiFixture } from './utils/api-generic.fixtures';
 
-test.describe('API Testing with Open Meteo Weather API @regression', () => {
+const test = createApiFixture({
+  apiName: 'REST Countries',
+});
+
+test.describe('API Testing with REST Countries @regression', () => {
   // ============================================================================
-  // Basic Forecast Endpoint
-  // ============================================================================
-
-  test('GET - Fetch weather forecast for New York City @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(responseBody).toHaveProperty('latitude');
-    expect(responseBody).toHaveProperty('longitude');
-    expect(responseBody).toHaveProperty('hourly');
-  });
-
-  test('GET - Fetch full daily forecast with multiple weather variables @smoke', async ({
-    apiRequest,
-  }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.FULL_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(responseBody).toHaveProperty('daily');
-    expect(responseBody.daily).toHaveProperty('temperature_2m_max');
-    expect(responseBody.daily).toHaveProperty('temperature_2m_min');
-    expect(responseBody.daily).toHaveProperty('precipitation_sum');
-    expect(Array.isArray(responseBody.daily.temperature_2m_max)).toBeTruthy();
-  });
-
-  test('GET - Fetch weather forecast for London @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.LONDON_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(responseBody).toHaveProperty('latitude');
-    expect(responseBody).toHaveProperty('longitude');
-    expect(responseBody).toHaveProperty('hourly');
-  });
-
-  test('GET - Fetch weather forecast for Paris @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.PARIS_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(responseBody).toHaveProperty('latitude');
-    expect(responseBody).toHaveProperty('longitude');
-  });
-
-  test('GET - Fetch weather forecast for Tokyo @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.TOKYO_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(responseBody).toHaveProperty('latitude');
-    expect(responseBody).toHaveProperty('longitude');
-  });
-
-  // ============================================================================
-  // Elevation Endpoint
+  // All Countries Endpoints
   // ============================================================================
 
-  test('GET - Fetch elevation data for New York City @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.ELEVATION}${QUERY_PARAMS4.ELEVATION_QUERY}`;
+  test('GET - Fetch all countries @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(API4.ENDPOINTS.ALL, undefined, QUERY_PARAMS.ALL_FIELDS, API4.BASE_URL);
     const response = await apiRequest.get(url);
 
     expect(response.ok()).toBeTruthy();
     expect(response.status()).toBe(200);
 
     const responseBody = await response.json();
-    expect(responseBody).toHaveProperty('elevation');
-    expect(Array.isArray(responseBody.elevation)).toBeTruthy();
-    expect(responseBody.elevation.length).toBeGreaterThan(0);
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+    expect(responseBody[0]).toHaveProperty('name');
+    expect(responseBody[0]).toHaveProperty('cca2');
+    expect(responseBody[0]).toHaveProperty('region');
   });
 
-  test('GET - Fetch elevation data for multiple cities at once @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.ELEVATION}${QUERY_PARAMS4.MULTIPLE_ELEVATION}`;
+  test('GET - Fetch all countries with fields filter @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(API4.ENDPOINTS.ALL, undefined, QUERY_PARAMS.FIELDS_FILTER, API4.BASE_URL);
     const response = await apiRequest.get(url);
 
     expect(response.ok()).toBeTruthy();
     expect(response.status()).toBe(200);
 
     const responseBody = await response.json();
-    expect(Array.isArray(responseBody.elevation)).toBeTruthy();
-    // We requested 3 cities so we expect 3 elevation values back
-    expect(responseBody.elevation.length).toBe(3);
-  });
-
-  test('GET - Elevation values are numeric @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.ELEVATION}${QUERY_PARAMS4.ELEVATION_QUERY}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    responseBody.elevation.forEach((value: any) => {
-      expect(typeof value).toBe('number');
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    responseBody.forEach((country: any) => {
+      expect(country).toHaveProperty('name');
+      expect(country).toHaveProperty('capital');
+      expect(country).toHaveProperty('region');
+      expect(country).toHaveProperty('population');
     });
   });
 
   // ============================================================================
-  // Historical Archive Endpoint
+  // Country Code Endpoints
   // ============================================================================
 
-  test('GET - Fetch historical weather data for New York @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.HISTORICAL}${QUERY_PARAMS4.HISTORICAL_NYC}`;
+  test('GET - Search country by valid country code @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE,
+      undefined,
+      API4.BASE_URL
+    );
     const response = await apiRequest.get(url);
 
-    // Historical endpoint returns 200 or 400 (if date is too recent or outside range)
-    expect([200, 400, 404]).toContain(response.status());
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
 
-    if (response.status() === 200) {
-      const responseBody = await response.json();
-      expect(responseBody).toHaveProperty('daily');
-      expect(responseBody).toHaveProperty('latitude');
-      expect(responseBody).toHaveProperty('longitude');
-    }
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody[0]).toHaveProperty('name');
+    expect(responseBody[0]).toHaveProperty('cca2');
+    expect(responseBody[0].cca2).toBe(TEST_DATA.VALID_COUNTRY_CODE);
+  });
+
+  test('GET - Search country by alternative country code @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE_2,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody[0].cca2).toBe(TEST_DATA.VALID_COUNTRY_CODE_2);
+  });
+
+  test('GET - Search country by invalid country code (negative test)', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.INVALID_COUNTRY_CODE,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
+  });
+
+  // ============================================================================
+  // Country Name Endpoints
+  // ============================================================================
+
+  test('GET - Search country by valid country name @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.NAME,
+      TEST_DATA.VALID_COUNTRY_NAME,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+    expect(responseBody[0]).toHaveProperty('name');
+    expect(responseBody[0]).toHaveProperty('capital');
+    expect(responseBody[0]).toHaveProperty('region');
+  });
+
+  test('GET - Search country by another valid name @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.NAME,
+      TEST_DATA.VALID_COUNTRY_NAME_2,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+  });
+
+  test('GET - Search country by invalid country name (negative test)', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.NAME,
+      TEST_DATA.INVALID_COUNTRY_NAME,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
+  });
+
+  // ============================================================================
+  // Region Endpoints
+  // ============================================================================
+
+  test('GET - Fetch countries by region @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.REGION,
+      TEST_DATA.VALID_REGION,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+    responseBody.forEach((country: any) => {
+      expect(country.region).toBe(TEST_DATA.VALID_REGION);
+    });
+  });
+
+  test('GET - Fetch countries by another region @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.REGION,
+      TEST_DATA.VALID_REGION_2,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    responseBody.forEach((country: any) => {
+      expect(country.region).toBe(TEST_DATA.VALID_REGION_2);
+    });
+  });
+
+  test('GET - Fetch countries by invalid region (negative test)', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.REGION,
+      TEST_DATA.INVALID_REGION,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
+  });
+
+  // ============================================================================
+  // Currency Endpoints
+  // ============================================================================
+
+  test('GET - Fetch countries by currency @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CURRENCY,
+      TEST_DATA.VALID_CURRENCY,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+  });
+
+  test('GET - Fetch countries by another currency @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CURRENCY,
+      TEST_DATA.VALID_CURRENCY_2,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+  });
+
+  test('GET - Fetch countries by invalid currency (negative test)', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CURRENCY,
+      TEST_DATA.INVALID_CURRENCY,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
+  });
+
+  // ============================================================================
+  // Language Endpoints
+  // ============================================================================
+
+  test('GET - Fetch countries by language @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.LANGUAGE,
+      TEST_DATA.VALID_LANGUAGE,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+  });
+
+  test('GET - Fetch countries by invalid language (negative test)', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.LANGUAGE,
+      TEST_DATA.INVALID_LANGUAGE,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
+  });
+
+  // ============================================================================
+  // Capital Endpoints
+  // ============================================================================
+
+  test('GET - Search countries by capital city @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CAPITAL,
+      TEST_DATA.VALID_CAPITAL,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+  });
+
+  test('GET - Search countries by another capital city @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CAPITAL,
+      TEST_DATA.VALID_CAPITAL_2,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+  });
+
+  test('GET - Search countries by invalid capital (negative test)', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CAPITAL,
+      TEST_DATA.INVALID_CAPITAL,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
   });
 
   // ============================================================================
   // Response Structure Validation
   // ============================================================================
 
-  test('GET - Validate forecast response top-level fields @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
+  test('GET - Validate country response structure @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(API4.ENDPOINTS.ALL, undefined, QUERY_PARAMS.ALL_FIELDS, API4.BASE_URL);
     const response = await apiRequest.get(url);
 
     expect(response.ok()).toBeTruthy();
     const responseBody = await response.json();
+    const country = responseBody[0];
 
-    // Validate required top-level properties
-    expect(responseBody).toHaveProperty('latitude');
-    expect(responseBody).toHaveProperty('longitude');
-    expect(responseBody).toHaveProperty('generationtime_ms');
-    expect(responseBody).toHaveProperty('utc_offset_seconds');
-    expect(responseBody).toHaveProperty('timezone');
-    expect(responseBody).toHaveProperty('hourly_units');
-    expect(responseBody).toHaveProperty('hourly');
+    // Validate required properties
+    expect(country).toHaveProperty('name');
+    expect(country).toHaveProperty('cca2');
+    expect(country).toHaveProperty('cca3');
+    expect(country).toHaveProperty('region');
+    expect(country).toHaveProperty('population');
+    expect(country).toHaveProperty('area');
+    expect(country).toHaveProperty('timezones');
+
+    // Validate property types
+    expect(typeof country.name).toBe('object');
+    expect(typeof country.cca2).toBe('string');
+    expect(typeof country.region).toBe('string');
+    expect(typeof country.population).toBe('number');
+    expect(Array.isArray(country.timezones)).toBeTruthy();
   });
 
-  test('GET - Validate coordinate types in forecast response @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
+  test('GET - Validate capital property in country data @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE,
+      undefined,
+      API4.BASE_URL
+    );
     const response = await apiRequest.get(url);
 
-    expect(response.ok()).toBeTruthy();
     const responseBody = await response.json();
+    const country = responseBody[0];
 
-    // latitude and longitude must be numbers
-    expect(typeof responseBody.latitude).toBe('number');
-    expect(typeof responseBody.longitude).toBe('number');
-    expect(typeof responseBody.generationtime_ms).toBe('number');
-    expect(typeof responseBody.utc_offset_seconds).toBe('number');
-    expect(typeof responseBody.timezone).toBe('string');
-  });
-
-  test('GET - Validate hourly temperature array is non-empty @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    expect(responseBody.hourly).toHaveProperty('temperature_2m');
-    expect(Array.isArray(responseBody.hourly.temperature_2m)).toBeTruthy();
-    // A 7-day forecast at hourly resolution = 168 values
-    expect(responseBody.hourly.temperature_2m.length).toBeGreaterThanOrEqual(24);
-  });
-
-  test('GET - Validate hourly units object is correct @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    expect(responseBody.hourly_units).toHaveProperty('time');
-    expect(responseBody.hourly_units).toHaveProperty('temperature_2m');
-    expect(typeof responseBody.hourly_units.temperature_2m).toBe('string');
-    // The unit for temperature should be a string like "°C" or "°F"
-    expect(responseBody.hourly_units.temperature_2m.length).toBeGreaterThan(0);
-  });
-
-  // ============================================================================
-  // Negative Tests — Error Handling
-  // ============================================================================
-
-  test('GET - Missing latitude parameter returns 400 (negative test)', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.MISSING_LAT}`;
-    const response = await apiRequest.get(url);
-
-    // API must reject requests with missing required coordinates
-    expect(response.status()).toBe(400);
-  });
-
-  test('GET - Missing longitude parameter returns 400 (negative test)', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.MISSING_LON}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(400);
-  });
-
-  test('GET - Invalid coordinates outside range returns 400 (negative test)', async ({
-    apiRequest,
-  }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.INVALID_COORDS}`;
-    const response = await apiRequest.get(url);
-
-    // latitude=999 is out of the valid -90 to 90 range — API should reject it
-    expect(response.status()).toBe(400);
-  });
-
-  test('GET - Error response body has reason field (negative test)', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.MISSING_LAT}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(400);
-    const responseBody = await response.json();
-    // Open Meteo returns { error: true, reason: "..." } on 400
-    expect(responseBody).toHaveProperty('error');
-    expect(responseBody.error).toBe(true);
-    expect(responseBody).toHaveProperty('reason');
-    expect(typeof responseBody.reason).toBe('string');
-  });
-
-  // ============================================================================
-  // Multi-City Sequential Tests
-  // ============================================================================
-
-  test('GET - Fetch forecasts for multiple cities in sequence @smoke', async ({ apiRequest }) => {
-    const cities = [
-      QUERY_PARAMS4.BASIC_FORECAST, // NYC
-      QUERY_PARAMS4.LONDON_FORECAST, // London
-      QUERY_PARAMS4.PARIS_FORECAST, // Paris
-    ];
-
-    for (const params of cities) {
-      const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${params}`;
-      const response = await apiRequest.get(url);
-
-      expect(response.ok()).toBeTruthy();
-      expect(response.status()).toBe(200);
-      const responseBody = await response.json();
-      expect(responseBody).toHaveProperty('hourly');
+    expect(country).toHaveProperty('capital');
+    expect(Array.isArray(country.capital)).toBeTruthy();
+    if (country.capital.length > 0) {
+      expect(typeof country.capital[0]).toBe('string');
     }
   });
 
-  test('GET - Verify consistency when fetching same city twice @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
+  // ============================================================================
+  // Advanced Filtering Tests
+  // ============================================================================
+
+  test('GET - Search multiple countries by code in sequence @smoke', async ({ apiRequest }) => {
+    const countries = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2, TEST_DATA.VALID_COUNTRY_CODE_3];
+    
+    for (const code of countries) {
+      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
+      const response = await apiRequest.get(url);
+      
+      expect(response.ok()).toBeTruthy();
+      expect(response.status()).toBe(200);
+      const responseBody = await response.json();
+      expect(responseBody[0].cca2).toBe(code);
+    }
+  });
+
+  test('GET - Fetch countries with name and region combined filters @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(API4.ENDPOINTS.REGION, TEST_DATA.VALID_REGION, QUERY_PARAMS.FIELDS_FILTER, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    responseBody.forEach((country: any) => {
+      expect(country.region).toBe(TEST_DATA.VALID_REGION);
+      expect(country).toHaveProperty('name');
+      expect(country).toHaveProperty('capital');
+      expect(country).toHaveProperty('population');
+    });
+  });
+
+  test('GET - Verify country codes are uppercase @smoke', async ({ apiRequest }) => {
+    // Use specific country lookup to avoid rate limiting
+    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE, undefined, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+    
+    if (responseBody[0].cca2) {
+      expect(responseBody[0].cca2).toMatch(/^[A-Z]{2}$/);
+    }
+    if (responseBody[0].cca3) {
+      expect(responseBody[0].cca3).toMatch(/^[A-Z]{3}$/);
+    }
+  });
+
+  test('GET - Verify all countries have population data @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_2, undefined, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+    
+    const country = responseBody[0];
+    // Population is optional but if present, should be a non-negative number
+    if (country.population !== undefined && country.population !== null) {
+      expect(typeof country.population).toBe('number');
+      expect(country.population).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  // ============================================================================
+  // Error Handling and Edge Cases
+  // ============================================================================
+
+  test('GET - Handle empty search results gracefully @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      'ZZ', // Non-existent country code
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(404);
+  });
+
+  test('GET - Verify region endpoint returns valid regions @smoke', async ({ apiRequest }) => {
+    // Use specific region lookup to avoid rate limiting
+    const url = buildApiUrl(API4.ENDPOINTS.REGION, TEST_DATA.VALID_REGION, undefined, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    const validRegions = new Set();
+    
+    responseBody.forEach((country: any) => {
+      if (country.region) {
+        expect(typeof country.region).toBe('string');
+        expect(country.region.length).toBeGreaterThan(0);
+        validRegions.add(country.region);
+      }
+    });
+
+    expect(validRegions.size).toBeGreaterThan(0);
+  });
+
+  test('GET - Verify all countries have timezones @smoke', async ({ apiRequest }) => {
+    // Use specific country lookup to avoid rate limiting
+    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_2, undefined, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    responseBody.forEach((country: any) => {
+      if (country.timezones) {
+        expect(Array.isArray(country.timezones)).toBeTruthy();
+        if (country.timezones.length > 0) {
+          expect(country.timezones.length).toBeGreaterThan(0);
+        }
+      }
+    });
+  });
+
+  // ============================================================================
+  // Language and Currency Combinations
+  // ============================================================================
+
+  test('GET - Verify language endpoint returns countries with languages @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.LANGUAGE,
+      TEST_DATA.VALID_LANGUAGE,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    
+    responseBody.forEach((country: any) => {
+      expect(country).toHaveProperty('languages');
+      expect(typeof country.languages).toBe('object');
+    });
+  });
+
+  test('GET - Verify currency endpoint returns valid currency data @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CURRENCY,
+      TEST_DATA.VALID_CURRENCY,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    
+    responseBody.forEach((country: any) => {
+      expect(country).toHaveProperty('currencies');
+      expect(typeof country.currencies).toBe('object');
+    });
+  });
+
+  // ============================================================================
+  // Country-Specific Data Validation
+  // ============================================================================
+
+  test('GET - Validate US country data structure @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    const us = responseBody[0];
+
+    expect(us.cca2).toBe('US');
+    expect(us.region).toBe('Americas');
+    expect(us).toHaveProperty('capital');
+    expect(Array.isArray(us.capital)).toBeTruthy();
+    expect(us.capital.length).toBeGreaterThan(0);
+  });
+
+  test('GET - Validate UK country data structure @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE_2,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    const uk = responseBody[0];
+
+    expect(uk.cca2).toBe('GB');
+    expect(uk.region).toBe('Europe');
+    expect(uk).toHaveProperty('capital');
+  });
+
+  test('GET - Validate France country data structure @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE_3,
+      undefined,
+      API4.BASE_URL
+    );
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    const responseBody = await response.json();
+    const fr = responseBody[0];
+
+    expect(fr.cca2).toBe('FR');
+    expect(fr.region).toBe('Europe');
+  });
+
+  // ============================================================================
+  // Performance and Load Tests
+  // ============================================================================
+
+  test('GET - Fetch specific country and verify response time @smoke', async ({ apiRequest }) => {
+    const startTime = Date.now();
+    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_3, undefined, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+    const endTime = Date.now();
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+    const responseBody = await response.json();
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    const responseTime = endTime - startTime;
+    expect(responseTime).toBeLessThan(TEST_DATA.TIMEOUT_THRESHOLD || 10000); // Should complete within 10 seconds
+  });
+
+  test('GET - Verify response body is properly formatted JSON @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE, undefined, API4.BASE_URL);
+    const response = await apiRequest.get(url);
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+    const contentType = response.headers()['content-type'];
+    if (contentType) {
+      expect(contentType).toContain('application/json');
+    }
+
+    const responseBody = await response.json();
+    expect(responseBody).toBeDefined();
+    expect(Array.isArray(responseBody) || typeof responseBody === 'object').toBeTruthy();
+  });
+
+  // ============================================================================
+  // Sorting and Ordering Tests
+  // ============================================================================
+
+  test('GET - Verify consistency when fetching same country multiple times @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.ALPHA,
+      TEST_DATA.VALID_COUNTRY_CODE,
+      undefined,
+      API4.BASE_URL
+    );
 
     const response1 = await apiRequest.get(url);
     const data1 = await response1.json();
@@ -285,184 +660,108 @@ test.describe('API Testing with Open Meteo Weather API @regression', () => {
     const response2 = await apiRequest.get(url);
     const data2 = await response2.json();
 
-    // Same city, same request → coordinates must match
-    expect(data1.latitude).toBe(data2.latitude);
-    expect(data1.longitude).toBe(data2.longitude);
-    expect(data1.timezone).toBe(data2.timezone);
+    expect(data1[0].cca2).toBe(data2[0].cca2);
+    expect(data1[0].name).toEqual(data2[0].name);
+    expect(data1[0].population).toBe(data2[0].population);
   });
 
-  // ============================================================================
-  // Data Quality Tests
-  // ============================================================================
-
-  test('GET - Latitude returned is close to requested latitude @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    // Open Meteo snaps coords to the nearest grid point.
-    // The returned latitude should be within 1 degree of what we requested.
-    expect(Math.abs(responseBody.latitude - TEST_DATA4.VALID_LAT)).toBeLessThan(1);
-  });
-
-  test('GET - Temperature values are realistic numbers @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const temps: number[] = responseBody.hourly.temperature_2m;
-
-    // Filter out null values (can occur at forecast boundaries)
-    const validTemps = temps.filter((t) => t !== null && t !== undefined);
-    expect(validTemps.length).toBeGreaterThan(0);
-
-    validTemps.forEach((temp) => {
-      expect(typeof temp).toBe('number');
-      // Realistic surface temperature range on Earth: -100°C to +60°C
-      expect(temp).toBeGreaterThan(-100);
-      expect(temp).toBeLessThan(100);
-    });
-  });
-
-  test('GET - Hourly time array has ISO 8601 date-time strings @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const times: string[] = responseBody.hourly.time;
-
-    expect(Array.isArray(times)).toBeTruthy();
-    expect(times.length).toBeGreaterThan(0);
-
-    // Each time entry should look like "2025-04-28T00:00"
-    times.slice(0, 5).forEach((t) => {
-      expect(t).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-    });
-  });
-
-  test('GET - Hourly time and temperature arrays have equal length @smoke', async ({
-    apiRequest,
-  }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    const timeLen = responseBody.hourly.time.length;
-    const tempLen = responseBody.hourly.temperature_2m.length;
-
-    // Both arrays must be the same length — one temp value per time slot
-    expect(timeLen).toBe(tempLen);
-  });
-
-  // ============================================================================
-  // Performance Tests
-  // ============================================================================
-
-  test('GET - Forecast response time is within acceptable limit @smoke', async ({ apiRequest }) => {
-    const startTime = Date.now();
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-    const endTime = Date.now();
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const elapsed = endTime - startTime;
-    expect(elapsed).toBeLessThan(TEST_DATA4.TIMEOUT_THRESHOLD); // 10 seconds
-  });
-
-  test('GET - Elevation response time is within acceptable limit @smoke', async ({
-    apiRequest,
-  }) => {
-    const startTime = Date.now();
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.ELEVATION}${QUERY_PARAMS4.ELEVATION_QUERY}`;
-    const response = await apiRequest.get(url);
-    const endTime = Date.now();
-
-    expect(response.ok()).toBeTruthy();
-    const elapsed = endTime - startTime;
-    expect(elapsed).toBeLessThan(TEST_DATA4.TIMEOUT_THRESHOLD);
-  });
-
-  // ============================================================================
-  // Content-Type and Headers Validation
-  // ============================================================================
-
-  test('GET - Response content-type is application/json @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const contentType = response.headers()['content-type'];
-    if (contentType) {
-      expect(contentType).toContain('application/json');
+  test('GET - Verify all country names are non-empty strings @smoke', async ({ apiRequest }) => {
+    // Test multiple countries by code
+    const countryCodes = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2, TEST_DATA.VALID_COUNTRY_CODE_3];
+    
+    for (const code of countryCodes) {
+      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
+      const response = await apiRequest.get(url);
+      expect(response.ok()).toBeTruthy();
+      
+      const responseBody = await response.json();
+      responseBody.forEach((country: any) => {
+        expect(country.name).toBeDefined();
+        if (country.name && country.name.official) {
+          expect(typeof country.name.official).toBe('string');
+          expect(country.name.official.length).toBeGreaterThan(0);
+        }
+      });
     }
   });
 
-  test('GET - Response body is valid parseable JSON @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
+  // ============================================================================
+  // Search Variations Tests
+  // ============================================================================
+
+  test('GET - Search by capital with full city name @smoke', async ({ apiRequest }) => {
+    const url = buildApiUrl(
+      API4.ENDPOINTS.CAPITAL,
+      TEST_DATA.VALID_CAPITAL,
+      undefined,
+      API4.BASE_URL
+    );
     const response = await apiRequest.get(url);
 
     expect(response.ok()).toBeTruthy();
-    // response.json() will throw if the body is not valid JSON
     const responseBody = await response.json();
-    expect(responseBody).toBeDefined();
-    expect(typeof responseBody).toBe('object');
+    
+    expect(Array.isArray(responseBody)).toBeTruthy();
+    expect(responseBody.length).toBeGreaterThan(0);
+    expect(responseBody[0]).toHaveProperty('capital');
   });
 
-  // ============================================================================
-  // Timezone and UTC Offset Validation
-  // ============================================================================
-
-  test('GET - Forecast with timezone=auto returns timezone string @smoke', async ({
-    apiRequest,
-  }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.FULL_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    expect(responseBody).toHaveProperty('timezone');
-    expect(typeof responseBody.timezone).toBe('string');
-    expect(responseBody.timezone.length).toBeGreaterThan(0);
+  test('GET - Verify area data is numeric for all countries @smoke', async ({ apiRequest }) => {
+    // Test multiple countries by code
+    const countryCodes = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2];
+    
+    for (const code of countryCodes) {
+      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
+      const response = await apiRequest.get(url);
+      expect(response.ok()).toBeTruthy();
+      
+      const responseBody = await response.json();
+      responseBody.forEach((country: any) => {
+        if (country.area !== null && country.area !== undefined) {
+          expect(typeof country.area).toBe('number');
+          expect(country.area).toBeGreaterThanOrEqual(0);
+        }
+      });
+    }
   });
 
-  test('GET - UTC offset is a number @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
+  test('GET - Verify borders data structure (if present) @smoke', async ({ apiRequest }) => {
+    // Test countries known to have borders
+    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_2, undefined, API4.BASE_URL);
     const response = await apiRequest.get(url);
 
     expect(response.ok()).toBeTruthy();
     const responseBody = await response.json();
-
-    expect(typeof responseBody.utc_offset_seconds).toBe('number');
-    // UTC offset in seconds: valid range is -43200 (-12h) to +50400 (+14h)
-    expect(responseBody.utc_offset_seconds).toBeGreaterThanOrEqual(-43200);
-    expect(responseBody.utc_offset_seconds).toBeLessThanOrEqual(50400);
+    const country = responseBody[0];
+    
+    if (country.borders && Array.isArray(country.borders)) {
+      expect(Array.isArray(country.borders)).toBeTruthy();
+      if (country.borders.length > 0) {
+        country.borders.forEach((border: string) => {
+          expect(border).toMatch(/^[A-Z]{1,3}$/);
+        });
+      }
+    }
   });
 
-  // ============================================================================
-  // Generation Time Validation
-  // ============================================================================
-
-  test('GET - Generationtime_ms shows server processing time @smoke', async ({ apiRequest }) => {
-    const url = `${API4.BASE_URL}${API4.ENDPOINTS.FORECAST}${QUERY_PARAMS4.BASIC_FORECAST}`;
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-
-    // generationtime_ms is how long the server took to generate the response
-    expect(responseBody).toHaveProperty('generationtime_ms');
-    expect(typeof responseBody.generationtime_ms).toBe('number');
-    expect(responseBody.generationtime_ms).toBeGreaterThan(0);
-    // Should never take more than 5 seconds server-side
-    expect(responseBody.generationtime_ms).toBeLessThan(5000);
+  test('GET - Verify flag emoji or symbol exists for countries @smoke', async ({ apiRequest }) => {
+    // Test specific countries
+    const countryCodes = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2];
+    
+    for (const code of countryCodes) {
+      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
+      const response = await apiRequest.get(url);
+      expect(response.ok()).toBeTruthy();
+      
+      const responseBody = await response.json();
+      expect(responseBody.length).toBeGreaterThan(0);
+      
+      responseBody.forEach((country: any) => {
+        if (country.flags) {
+          expect(country.flags).toBeDefined();
+          expect(typeof country.flags).toBe('object');
+        }
+      });
+    }
   });
 });

@@ -1,22 +1,41 @@
-/**
- * API Configuration Constants for REST Countries
- * Contains base URL, endpoints, and timeout configurations for the REST Countries API
- * No authentication required - this is a free public API for testing
- */
 
-export const API4 = {
-  BASE_URL: 'https://restcountries.com/v3.1',
+export const DUMMYJSON_JWT = {
+  BASE_URL: 'https://dummyjson.com',
+
   ENDPOINTS: {
-    ALL: '/all',
-    NAME: '/name',
-    ALPHA: '/alpha',
-    CURRENCY: '/currency',
-    LANGUAGE: '/lang',
-    CAPITAL: '/capital',
-    REGION: '/region',
+    // ── Auth (the JWT-specific endpoints) ───────────────────────────────────
+    LOGIN:   '/auth/login',     
+    ME:      '/auth/me',        
+    REFRESH: '/auth/refresh',   
+
+    // ── Products ────────────────────────────────────────────────────────────
+    PRODUCTS:        '/products',
+    PRODUCT_BY_ID:   '/products',       
+    PRODUCTS_ADD:    '/products/add',
+    PRODUCTS_SEARCH: '/products/search',
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    USERS:      '/users',
+    USER_BY_ID: '/users',               
+
+    // ── Carts ────────────────────────────────────────────────────────────────
+    CARTS:          '/carts',
+    CART_BY_ID:     '/carts',
+    CARTS_USER:     '/carts/user',      
+
+    // ── Posts ────────────────────────────────────────────────────────────────
+    POSTS:       '/posts',
+    POST_BY_ID:  '/posts',
+    POSTS_SEARCH: '/posts/search',
+
+    // ── Todos ────────────────────────────────────────────────────────────────
+    TODOS:          '/todos',
+    TODO_BY_ID:     '/todos',
+    TODOS_USER:     '/todos/user',      
   },
+
   TIMEOUTS: {
-    GET_RESPONSE: 5000,
-    POST_RESPONSE: 3000,
+    RESPONSE_TIME: 5000,    
+    LOGIN_TIME:    3000,    
   },
 };

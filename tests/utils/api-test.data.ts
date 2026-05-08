@@ -109,3 +109,8 @@ export const createUpdatedEmployee = (overrides?: Partial<any>) => ({
 export const createPartialUpdateData = () => ({
   firstName: 'PatchedFirst',
 });
+
+export const API7_TEST_USERS = {
+  email: 'john@mail.com',
+  password: 'changeme',
+};

@@ -1,767 +1,455 @@
-import { expect } from '@playwright/test';
-import { API4 } from './utils/api4.constants';
-import { buildApiUrl } from './utils/api-test.helpers';
-import {
-  TEST_DATA,
-  QUERY_PARAMS,
-} from './utils/api4-testdata';
-import { createApiFixture } from './utils/api-generic.fixtures';
 
-const test = createApiFixture({
-  apiName: 'REST Countries',
+import { test } from './utils/api4.fixtures';
+import { expect } from '@playwright/test';
+import { DUMMYJSON_JWT } from './utils/api4.constants';
+import {
+  DUMMYJSON_CREDENTIALS,
+  DUMMYJSON_IDS,
+  DUMMYJSON_PAGINATION,
+  createLoginPayload,
+  createProductPayload,
+} from './utils/api4-testdata';
+import { buildApiUrl } from './utils/api-test.helpers';
+
+const u = (endpoint: string, id?: string | number, query?: string) =>
+  buildApiUrl(endpoint, id, query, DUMMYJSON_JWT.BASE_URL);
+
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 1 — JWT Login Flow @critical
+
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('JWT Login Flow @critical', () => {
+  // POSITIVE — happy path login
+  test('POST - Login with valid credentials returns 200 and real 3-part JWT', async ({
+    request,
+  }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.LOGIN), {
+      data: createLoginPayload(),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    expect(response.ok()).toBeTruthy();
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+
+    // Token must be present and non-empty
+    expect(body).toHaveProperty('accessToken');
+    expect(typeof body.accessToken).toBe('string');
+    expect(body.accessToken.length).toBeGreaterThan(0);
+
+    // THIS is what makes it a real JWT — exactly 3 parts separated by dots
+    // header.payload.signature — each part is base64url encoded
+    // ReqRes returns "QpwL5tpe83iIkJO" — only 1 part, NOT a real JWT
+    // DummyJSON returns "eyJ...eyJ...abc" — 3 parts, a proper JWT
+    const parts = body.accessToken.split('.');
+    expect(parts.length).toBe(3);
+  });
+
+  // POSITIVE — login response contains user info alongside token
+  test('POST - Login response contains token refreshToken and user details', async ({
+    request,
+  }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.LOGIN), {
+      data: createLoginPayload(),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const body = await response.json();
+
+    // DummyJSON returns both tokens and user info in one response
+    expect(body).toHaveProperty('accessToken');
+    expect(body).toHaveProperty('refreshToken');
+    expect(body).toHaveProperty('id');
+    expect(body).toHaveProperty('username');
+    expect(body).toHaveProperty('email');
+
+    // refreshToken is also a real JWT — not just the access token
+    expect(body.refreshToken.split('.').length).toBe(3);
+
+    // Username in the response must match what we sent
+    expect(body.username).toBe(DUMMYJSON_CREDENTIALS.VALID_USERNAME);
+  });
+
+  // NEGATIVE — wrong password
+  test('POST - Login with wrong password returns 400 with error message', async ({ request }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.LOGIN), {
+      data: createLoginPayload({ password: DUMMYJSON_CREDENTIALS.WRONG_PASSWORD }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // 400 Bad Request — server must reject wrong credentials
+    expect(response.status()).toBe(400);
+
+    const body = await response.json();
+    // Must return structured JSON error — not blank body or 500
+    expect(body).toHaveProperty('message');
+    expect(typeof body.message).toBe('string');
+  });
+
+  // NEGATIVE — invalid username
+  test('POST - Login with invalid username returns 400', async ({ request }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.LOGIN), {
+      data: createLoginPayload({ username: DUMMYJSON_CREDENTIALS.INVALID_USERNAME }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    expect(response.status()).toBe(400);
+  });
 });
 
-test.describe('API Testing with REST Countries @regression', () => {
-  // ============================================================================
-  // All Countries Endpoints
-  // ============================================================================
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 2 — Protected Endpoint /auth/me @critical
+// 5 tests — 3 positive, 2 negative
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('Protected Endpoint /auth/me @critical', () => {
+  // POSITIVE — valid token, correct user returned
+  test('GET - /auth/me with valid Bearer token returns 200 @smoke', async ({ dummyJwtRequest }) => {
+    // dummyJwtRequest attaches Authorization: Bearer <token> automatically
+    const response = await dummyJwtRequest.get(u(DUMMYJSON_JWT.ENDPOINTS.ME));
 
-  test('GET - Fetch all countries @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(API4.ENDPOINTS.ALL, undefined, QUERY_PARAMS.ALL_FIELDS, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
     expect(response.status()).toBe(200);
+    expect(response.ok()).toBeTruthy();
 
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-    expect(responseBody[0]).toHaveProperty('name');
-    expect(responseBody[0]).toHaveProperty('cca2');
-    expect(responseBody[0]).toHaveProperty('region');
+    const body = await response.json();
+
+    // Must return the user who logged in
+    expect(body).toHaveProperty('id');
+    expect(body).toHaveProperty('username');
+    expect(body).toHaveProperty('email');
+    expect(body.username).toBe(DUMMYJSON_CREDENTIALS.VALID_USERNAME);
   });
 
-  test('GET - Fetch all countries with fields filter @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(API4.ENDPOINTS.ALL, undefined, QUERY_PARAMS.FIELDS_FILTER, API4.BASE_URL);
-    const response = await apiRequest.get(url);
+  // POSITIVE — response user ID matches login user ID
+  test('GET - /auth/me user ID matches fixture getUserId()', async ({ dummyJwtRequest }) => {
+    const response = await dummyJwtRequest.get(u(DUMMYJSON_JWT.ENDPOINTS.ME));
+    const body = await response.json();
 
-    expect(response.ok()).toBeTruthy();
+    // Two sources must agree on the same user ID:
+    // 1. /auth/me response body
+    // 2. Login response stored inside fixture via getUserId()
+    expect(body.id).toBe(dummyJwtRequest.getUserId());
+  });
+
+  // POSITIVE — username matches
+  test('GET - /auth/me username matches fixture getUsername()', async ({ dummyJwtRequest }) => {
+    const response = await dummyJwtRequest.get(u(DUMMYJSON_JWT.ENDPOINTS.ME));
+    const body = await response.json();
+
+    expect(body.username).toBe(dummyJwtRequest.getUsername());
+  });
+
+  // NEGATIVE — no token at all
+  test('GET - /auth/me WITHOUT token returns 401', async ({ request }) => {
+    // Using plain { request } — no Bearer header attached
+    // This PROVES the endpoint enforces authentication
+    const response = await request.get(u(DUMMYJSON_JWT.ENDPOINTS.ME), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // 401 Unauthorized — no token, no access
+    expect(response.status()).toBe(401);
+
+    const body = await response.json();
+    // Error must be structured JSON — not an HTML error page
+    expect(body).toHaveProperty('message');
+  });
+
+  // NEGATIVE — fake token
+  test('GET - /auth/me with fake Bearer token returns 401', async ({ request }) => {
+    // Sending a made-up Bearer string — server must reject it
+    // Proves the server validates the token signature, not just its presence
+    const response = await request.get(u(DUMMYJSON_JWT.ENDPOINTS.ME), {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer thisisafaketoken',
+      },
+    });
+
+    expect(response.status()).toBe(401);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 3 — JWT Token Structure Validation
+// 3 tests — all positive, unique to JWT
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('JWT Token Structure Validation', () => {
+  // Decode header — first part of the JWT
+  test('JWT header decodes to object with alg and typ JWT', async ({ dummyJwtRequest }) => {
+    const token = dummyJwtRequest.getToken();
+    const headerPart = token.split('.')[0]; // first part = header
+
+    // Decode base64url → UTF-8 string → JavaScript object
+    const decoded = JSON.parse(Buffer.from(headerPart, 'base64url').toString('utf-8'));
+
+    // JWT header must always have these two fields
+    expect(decoded).toHaveProperty('alg'); // signing algorithm e.g. "HS256"
+    expect(decoded).toHaveProperty('typ'); // token type — must be "JWT"
+    expect(decoded.typ).toBe('JWT');
+    expect(typeof decoded.alg).toBe('string');
+  });
+
+  // Decode payload — second part of the JWT
+  test('JWT payload decodes to object with id and iat timestamp', async ({ dummyJwtRequest }) => {
+    const token = dummyJwtRequest.getToken();
+    const payloadPart = token.split('.')[1]; // second part = payload (claims)
+
+    const decoded = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf-8'));
+
+    // Standard JWT claims
+    expect(decoded).toHaveProperty('id'); // user identifier
+    expect(decoded).toHaveProperty('iat'); // issued-at — Unix timestamp in seconds
+    expect(typeof decoded.id).toBe('number');
+    expect(typeof decoded.iat).toBe('number');
+
+    // iat must be a recent Unix timestamp — within the last 5 minutes
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    expect(decoded.iat).toBeLessThanOrEqual(nowSeconds + 120);
+    expect(decoded.iat).toBeGreaterThan(nowSeconds - 300);
+  });
+
+  // Cross-check decoded payload ID with fixture getUserId()
+  test('JWT payload user ID matches fixture getUserId()', async ({ dummyJwtRequest }) => {
+    const token = dummyJwtRequest.getToken();
+    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'));
+
+    // Three sources must all agree on the same user ID:
+    // 1. JWT payload decoded directly from the token string
+    // 2. getUserId() from login response stored in the fixture
+    // 3. /auth/me response (tested in Group 2)
+    expect(decoded.id).toBe(dummyJwtRequest.getUserId());
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 4 — Token Refresh Flow
+// 2 tests — 1 positive, 1 negative
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('Token Refresh Flow', () => {
+  // POSITIVE — valid refresh token returns new access token
+  test('POST - Refresh with valid refreshToken returns new 3-part JWT', async ({
+    dummyJwtRequest,
+    request,
+  }) => {
+    const refreshToken = dummyJwtRequest.getRefreshToken();
+
+    // The refreshToken from the fixture must also be a valid 3-part JWT
+    expect(refreshToken.split('.').length).toBe(3);
+
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.REFRESH), {
+      data: { refreshToken, expiresInMins: 30 },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
     expect(response.status()).toBe(200);
 
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    responseBody.forEach((country: any) => {
-      expect(country).toHaveProperty('name');
-      expect(country).toHaveProperty('capital');
-      expect(country).toHaveProperty('region');
-      expect(country).toHaveProperty('population');
+    const body = await response.json();
+    // Both new tokens returned
+    expect(body).toHaveProperty('accessToken');
+    expect(body).toHaveProperty('refreshToken');
+    // Both must be valid 3-part JWTs
+    expect(body.accessToken.split('.').length).toBe(3);
+    expect(body.refreshToken.split('.').length).toBe(3);
+  });
+
+  // NEGATIVE — invalid refresh token
+  test('POST - Refresh with invalid refreshToken returns 401', async ({ request }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.REFRESH), {
+      data: { refreshToken: 'totallyinvalidtoken', expiresInMins: 30 },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    expect([401, 403]).toContain(response.status());
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 5 — Authenticated Products CRUD @smoke
+// 5 tests — 4 positive, 1 negative
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('Authenticated Products CRUD @smoke', () => {
+  // POSITIVE — GET list with pagination
+  test('GET - Products list with Bearer token returns 200 and valid structure', async ({
+    dummyJwtRequest,
+  }) => {
+    const response = await dummyJwtRequest.get(
+      u(
+        DUMMYJSON_JWT.ENDPOINTS.PRODUCTS,
+        undefined,
+        `?limit=${DUMMYJSON_PAGINATION.LIMIT}&skip=${DUMMYJSON_PAGINATION.SKIP_PAGE_1}`
+      )
+    );
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    expect(body).toHaveProperty('products');
+    expect(Array.isArray(body.products)).toBeTruthy();
+    expect(body.products.length).toBeGreaterThan(0);
+
+    // Every product must have correct field types
+    body.products.forEach((product: any) => {
+      expect(typeof product.id).toBe('number');
+      expect(typeof product.title).toBe('string');
+      expect(typeof product.price).toBe('number');
+      // Business rule — price must always be positive
+      expect(product.price).toBeGreaterThan(0);
     });
   });
 
-  // ============================================================================
-  // Country Code Endpoints
-  // ============================================================================
+  // POSITIVE — POST create
+  test('POST - Create product with token returns 201 and echoes fields', async ({
+    dummyJwtRequest,
+  }) => {
+    const payload = createProductPayload();
+    const response = await dummyJwtRequest.post(u(DUMMYJSON_JWT.ENDPOINTS.PRODUCTS_ADD), payload);
 
-  test('GET - Search country by valid country code @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
+    expect(response.status()).toBe(201);
+    const body = await response.json();
 
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody[0]).toHaveProperty('name');
-    expect(responseBody[0]).toHaveProperty('cca2');
-    expect(responseBody[0].cca2).toBe(TEST_DATA.VALID_COUNTRY_CODE);
+    // Response must echo back what we sent
+    expect(body.title).toBe(payload.title);
+    expect(body.price).toBe(payload.price);
+    // Server assigns a new ID
+    expect(body).toHaveProperty('id');
+    expect(typeof body.id).toBe('number');
   });
 
-  test('GET - Search country by alternative country code @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE_2,
-      undefined,
-      API4.BASE_URL
+  // POSITIVE — PATCH partial update (only price changed)
+  test('PATCH - Partial update product price only returns 200', async ({ dummyJwtRequest }) => {
+    const response = await dummyJwtRequest.patch(
+      u(DUMMYJSON_JWT.ENDPOINTS.PRODUCT_BY_ID, DUMMYJSON_IDS.VALID_PRODUCT),
+      { price: 999.99 } // PATCH — only send what needs to change
     );
-    const response = await apiRequest.get(url);
 
-    expect(response.ok()).toBeTruthy();
     expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody[0].cca2).toBe(TEST_DATA.VALID_COUNTRY_CODE_2);
+    const body = await response.json();
+    expect(body.price).toBe(999.99);
+    expect(body).toHaveProperty('id');
   });
 
-  test('GET - Search country by invalid country code (negative test)', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.INVALID_COUNTRY_CODE,
-      undefined,
-      API4.BASE_URL
+  // POSITIVE — DELETE
+  test('DELETE - Delete product returns 200 with isDeleted true', async ({ dummyJwtRequest }) => {
+    const response = await dummyJwtRequest.delete(
+      u(DUMMYJSON_JWT.ENDPOINTS.PRODUCT_BY_ID, DUMMYJSON_IDS.VALID_PRODUCT_2)
     );
-    const response = await apiRequest.get(url);
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    // DummyJSON echoes the deleted product back with these two fields
+    expect(body).toHaveProperty('isDeleted');
+    expect(body.isDeleted).toBe(true);
+    expect(body).toHaveProperty('deletedOn');
+  });
+
+  // NEGATIVE — non-existent product ID
+  test('GET - Non-existent product ID 9999 returns 404 with message', async ({
+    dummyJwtRequest,
+  }) => {
+    const response = await dummyJwtRequest.get(
+      u(DUMMYJSON_JWT.ENDPOINTS.PRODUCT_BY_ID, DUMMYJSON_IDS.INVALID_PRODUCT)
+    );
 
     expect(response.status()).toBe(404);
+    const body = await response.json();
+    // Server must return structured JSON error — not blank body
+    expect(body).toHaveProperty('message');
+    expect(typeof body.message).toBe('string');
   });
+});
 
-  // ============================================================================
-  // Country Name Endpoints
-  // ============================================================================
-
-  test('GET - Search country by valid country name @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.NAME,
-      TEST_DATA.VALID_COUNTRY_NAME,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-    expect(responseBody[0]).toHaveProperty('name');
-    expect(responseBody[0]).toHaveProperty('capital');
-    expect(responseBody[0]).toHaveProperty('region');
-  });
-
-  test('GET - Search country by another valid name @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.NAME,
-      TEST_DATA.VALID_COUNTRY_NAME_2,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-  });
-
-  test('GET - Search country by invalid country name (negative test)', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.NAME,
-      TEST_DATA.INVALID_COUNTRY_NAME,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(404);
-  });
-
-  // ============================================================================
-  // Region Endpoints
-  // ============================================================================
-
-  test('GET - Fetch countries by region @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.REGION,
-      TEST_DATA.VALID_REGION,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-    responseBody.forEach((country: any) => {
-      expect(country.region).toBe(TEST_DATA.VALID_REGION);
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 6 — Performance With JWT
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('Performance With JWT', () => {
+  test('POST - Login responds within 5000ms', async ({ request }) => {
+    const start = Date.now();
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.LOGIN), {
+      data: createLoginPayload(),
+      headers: { 'Content-Type': 'application/json' },
     });
-  });
-
-  test('GET - Fetch countries by another region @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.REGION,
-      TEST_DATA.VALID_REGION_2,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
+    const elapsed = Date.now() - start;
 
     expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    responseBody.forEach((country: any) => {
-      expect(country.region).toBe(TEST_DATA.VALID_REGION_2);
-    });
+    expect(elapsed).toBeLessThan(DUMMYJSON_JWT.TIMEOUTS.RESPONSE_TIME);
   });
 
-  test('GET - Fetch countries by invalid region (negative test)', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.REGION,
-      TEST_DATA.INVALID_REGION,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(404);
-  });
-
-  // ============================================================================
-  // Currency Endpoints
-  // ============================================================================
-
-  test('GET - Fetch countries by currency @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CURRENCY,
-      TEST_DATA.VALID_CURRENCY,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
+  test('GET - /auth/me with token responds within 5000ms', async ({ dummyJwtRequest }) => {
+    const start = Date.now();
+    const response = await dummyJwtRequest.get(u(DUMMYJSON_JWT.ENDPOINTS.ME));
+    const elapsed = Date.now() - start;
 
     expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThan(DUMMYJSON_JWT.TIMEOUTS.RESPONSE_TIME);
   });
+});
 
-  test('GET - Fetch countries by another currency @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CURRENCY,
-      TEST_DATA.VALID_CURRENCY_2,
-      undefined,
-      API4.BASE_URL
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 7 — Concurrent Requests With JWT
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('Concurrent Requests With JWT', () => {
+  test('GET - Three simultaneous requests all return 200 with same token', async ({
+    dummyJwtRequest,
+  }) => {
+    const productUrl = u(DUMMYJSON_JWT.ENDPOINTS.PRODUCTS);
+
+    // Array(3).fill(null).map creates 3 pending promises without awaiting
+    // Promise.all fires all three simultaneously — not one by one
+    const responses = await Promise.all(
+      Array(3)
+        .fill(null)
+        .map(() => dummyJwtRequest.get(productUrl))
     );
-    const response = await apiRequest.get(url);
 
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-  });
-
-  test('GET - Fetch countries by invalid currency (negative test)', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CURRENCY,
-      TEST_DATA.INVALID_CURRENCY,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(404);
-  });
-
-  // ============================================================================
-  // Language Endpoints
-  // ============================================================================
-
-  test('GET - Fetch countries by language @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.LANGUAGE,
-      TEST_DATA.VALID_LANGUAGE,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-  });
-
-  test('GET - Fetch countries by invalid language (negative test)', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.LANGUAGE,
-      TEST_DATA.INVALID_LANGUAGE,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(404);
-  });
-
-  // ============================================================================
-  // Capital Endpoints
-  // ============================================================================
-
-  test('GET - Search countries by capital city @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CAPITAL,
-      TEST_DATA.VALID_CAPITAL,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-  });
-
-  test('GET - Search countries by another capital city @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CAPITAL,
-      TEST_DATA.VALID_CAPITAL_2,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-  });
-
-  test('GET - Search countries by invalid capital (negative test)', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CAPITAL,
-      TEST_DATA.INVALID_CAPITAL,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(404);
-  });
-
-  // ============================================================================
-  // Response Structure Validation
-  // ============================================================================
-
-  test('GET - Validate country response structure @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(API4.ENDPOINTS.ALL, undefined, QUERY_PARAMS.ALL_FIELDS, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const country = responseBody[0];
-
-    // Validate required properties
-    expect(country).toHaveProperty('name');
-    expect(country).toHaveProperty('cca2');
-    expect(country).toHaveProperty('cca3');
-    expect(country).toHaveProperty('region');
-    expect(country).toHaveProperty('population');
-    expect(country).toHaveProperty('area');
-    expect(country).toHaveProperty('timezones');
-
-    // Validate property types
-    expect(typeof country.name).toBe('object');
-    expect(typeof country.cca2).toBe('string');
-    expect(typeof country.region).toBe('string');
-    expect(typeof country.population).toBe('number');
-    expect(Array.isArray(country.timezones)).toBeTruthy();
-  });
-
-  test('GET - Validate capital property in country data @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    const responseBody = await response.json();
-    const country = responseBody[0];
-
-    expect(country).toHaveProperty('capital');
-    expect(Array.isArray(country.capital)).toBeTruthy();
-    if (country.capital.length > 0) {
-      expect(typeof country.capital[0]).toBe('string');
-    }
-  });
-
-  // ============================================================================
-  // Advanced Filtering Tests
-  // ============================================================================
-
-  test('GET - Search multiple countries by code in sequence @smoke', async ({ apiRequest }) => {
-    const countries = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2, TEST_DATA.VALID_COUNTRY_CODE_3];
-    
-    for (const code of countries) {
-      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
-      const response = await apiRequest.get(url);
-      
-      expect(response.ok()).toBeTruthy();
+    // All three must succeed with the same Bearer token
+    responses.forEach((response) => {
       expect(response.status()).toBe(200);
-      const responseBody = await response.json();
-      expect(responseBody[0].cca2).toBe(code);
-    }
-  });
-
-  test('GET - Fetch countries with name and region combined filters @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(API4.ENDPOINTS.REGION, TEST_DATA.VALID_REGION, QUERY_PARAMS.FIELDS_FILTER, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    responseBody.forEach((country: any) => {
-      expect(country.region).toBe(TEST_DATA.VALID_REGION);
-      expect(country).toHaveProperty('name');
-      expect(country).toHaveProperty('capital');
-      expect(country).toHaveProperty('population');
     });
   });
+});
 
-  test('GET - Verify country codes are uppercase @smoke', async ({ apiRequest }) => {
-    // Use specific country lookup to avoid rate limiting
-    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-    
-    if (responseBody[0].cca2) {
-      expect(responseBody[0].cca2).toMatch(/^[A-Z]{2}$/);
-    }
-    if (responseBody[0].cca3) {
-      expect(responseBody[0].cca3).toMatch(/^[A-Z]{3}$/);
-    }
-  });
-
-  test('GET - Verify all countries have population data @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_2, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-    
-    const country = responseBody[0];
-    // Population is optional but if present, should be a non-negative number
-    if (country.population !== undefined && country.population !== null) {
-      expect(typeof country.population).toBe('number');
-      expect(country.population).toBeGreaterThanOrEqual(0);
-    }
-  });
-
-  // ============================================================================
-  // Error Handling and Edge Cases
-  // ============================================================================
-
-  test('GET - Handle empty search results gracefully @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      'ZZ', // Non-existent country code
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.status()).toBe(404);
-  });
-
-  test('GET - Verify region endpoint returns valid regions @smoke', async ({ apiRequest }) => {
-    // Use specific region lookup to avoid rate limiting
-    const url = buildApiUrl(API4.ENDPOINTS.REGION, TEST_DATA.VALID_REGION, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const validRegions = new Set();
-    
-    responseBody.forEach((country: any) => {
-      if (country.region) {
-        expect(typeof country.region).toBe('string');
-        expect(country.region.length).toBeGreaterThan(0);
-        validRegions.add(country.region);
-      }
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 8 — Error Scenarios
+// ════════════════════════════════════════════════════════════════════════════
+test.describe('Error Scenarios', () => {
+  // NEGATIVE — wrong credentials
+  test('POST - Login with wrong credentials returns 400 and message field', async ({ request }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.LOGIN), {
+      data: createLoginPayload({
+        username: DUMMYJSON_CREDENTIALS.VALID_USERNAME,
+        password: DUMMYJSON_CREDENTIALS.WRONG_PASSWORD,
+      }),
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    expect(validRegions.size).toBeGreaterThan(0);
+    expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body).toHaveProperty('message');
+    expect(typeof body.message).toBe('string');
+    expect(body.message.length).toBeGreaterThan(0);
   });
 
-  test('GET - Verify all countries have timezones @smoke', async ({ apiRequest }) => {
-    // Use specific country lookup to avoid rate limiting
-    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_2, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    responseBody.forEach((country: any) => {
-      if (country.timezones) {
-        expect(Array.isArray(country.timezones)).toBeTruthy();
-        if (country.timezones.length > 0) {
-          expect(country.timezones.length).toBeGreaterThan(0);
-        }
-      }
+  // NEGATIVE — no token on protected endpoint
+  test('GET - /auth/me without token returns 401 and message field', async ({ request }) => {
+    const response = await request.get(u(DUMMYJSON_JWT.ENDPOINTS.ME), {
+      headers: { 'Content-Type': 'application/json' },
     });
+
+    expect(response.status()).toBe(401);
+    const body = await response.json();
+    expect(body).toHaveProperty('message');
   });
 
-  // ============================================================================
-  // Language and Currency Combinations
-  // ============================================================================
-
-  test('GET - Verify language endpoint returns countries with languages @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.LANGUAGE,
-      TEST_DATA.VALID_LANGUAGE,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    
-    responseBody.forEach((country: any) => {
-      expect(country).toHaveProperty('languages');
-      expect(typeof country.languages).toBe('object');
+  // NEGATIVE — invalid refresh token
+  test('POST - Refresh with invalid token returns 401 and message field', async ({ request }) => {
+    const response = await request.post(u(DUMMYJSON_JWT.ENDPOINTS.REFRESH), {
+      data: { refreshToken: 'invalidtoken', expiresInMins: 30 },
+      headers: { 'Content-Type': 'application/json' },
     });
-  });
 
-  test('GET - Verify currency endpoint returns valid currency data @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CURRENCY,
-      TEST_DATA.VALID_CURRENCY,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    
-    responseBody.forEach((country: any) => {
-      expect(country).toHaveProperty('currencies');
-      expect(typeof country.currencies).toBe('object');
-    });
-  });
-
-  // ============================================================================
-  // Country-Specific Data Validation
-  // ============================================================================
-
-  test('GET - Validate US country data structure @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const us = responseBody[0];
-
-    expect(us.cca2).toBe('US');
-    expect(us.region).toBe('Americas');
-    expect(us).toHaveProperty('capital');
-    expect(Array.isArray(us.capital)).toBeTruthy();
-    expect(us.capital.length).toBeGreaterThan(0);
-  });
-
-  test('GET - Validate UK country data structure @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE_2,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const uk = responseBody[0];
-
-    expect(uk.cca2).toBe('GB');
-    expect(uk.region).toBe('Europe');
-    expect(uk).toHaveProperty('capital');
-  });
-
-  test('GET - Validate France country data structure @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE_3,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const fr = responseBody[0];
-
-    expect(fr.cca2).toBe('FR');
-    expect(fr.region).toBe('Europe');
-  });
-
-  // ============================================================================
-  // Performance and Load Tests
-  // ============================================================================
-
-  test('GET - Fetch specific country and verify response time @smoke', async ({ apiRequest }) => {
-    const startTime = Date.now();
-    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_3, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-    const endTime = Date.now();
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-    const responseBody = await response.json();
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    const responseTime = endTime - startTime;
-    expect(responseTime).toBeLessThan(TEST_DATA.TIMEOUT_THRESHOLD || 10000); // Should complete within 10 seconds
-  });
-
-  test('GET - Verify response body is properly formatted JSON @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-    const contentType = response.headers()['content-type'];
-    if (contentType) {
-      expect(contentType).toContain('application/json');
-    }
-
-    const responseBody = await response.json();
-    expect(responseBody).toBeDefined();
-    expect(Array.isArray(responseBody) || typeof responseBody === 'object').toBeTruthy();
-  });
-
-  // ============================================================================
-  // Sorting and Ordering Tests
-  // ============================================================================
-
-  test('GET - Verify consistency when fetching same country multiple times @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.ALPHA,
-      TEST_DATA.VALID_COUNTRY_CODE,
-      undefined,
-      API4.BASE_URL
-    );
-
-    const response1 = await apiRequest.get(url);
-    const data1 = await response1.json();
-
-    const response2 = await apiRequest.get(url);
-    const data2 = await response2.json();
-
-    expect(data1[0].cca2).toBe(data2[0].cca2);
-    expect(data1[0].name).toEqual(data2[0].name);
-    expect(data1[0].population).toBe(data2[0].population);
-  });
-
-  test('GET - Verify all country names are non-empty strings @smoke', async ({ apiRequest }) => {
-    // Test multiple countries by code
-    const countryCodes = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2, TEST_DATA.VALID_COUNTRY_CODE_3];
-    
-    for (const code of countryCodes) {
-      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
-      const response = await apiRequest.get(url);
-      expect(response.ok()).toBeTruthy();
-      
-      const responseBody = await response.json();
-      responseBody.forEach((country: any) => {
-        expect(country.name).toBeDefined();
-        if (country.name && country.name.official) {
-          expect(typeof country.name.official).toBe('string');
-          expect(country.name.official.length).toBeGreaterThan(0);
-        }
-      });
-    }
-  });
-
-  // ============================================================================
-  // Search Variations Tests
-  // ============================================================================
-
-  test('GET - Search by capital with full city name @smoke', async ({ apiRequest }) => {
-    const url = buildApiUrl(
-      API4.ENDPOINTS.CAPITAL,
-      TEST_DATA.VALID_CAPITAL,
-      undefined,
-      API4.BASE_URL
-    );
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    
-    expect(Array.isArray(responseBody)).toBeTruthy();
-    expect(responseBody.length).toBeGreaterThan(0);
-    expect(responseBody[0]).toHaveProperty('capital');
-  });
-
-  test('GET - Verify area data is numeric for all countries @smoke', async ({ apiRequest }) => {
-    // Test multiple countries by code
-    const countryCodes = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2];
-    
-    for (const code of countryCodes) {
-      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
-      const response = await apiRequest.get(url);
-      expect(response.ok()).toBeTruthy();
-      
-      const responseBody = await response.json();
-      responseBody.forEach((country: any) => {
-        if (country.area !== null && country.area !== undefined) {
-          expect(typeof country.area).toBe('number');
-          expect(country.area).toBeGreaterThanOrEqual(0);
-        }
-      });
-    }
-  });
-
-  test('GET - Verify borders data structure (if present) @smoke', async ({ apiRequest }) => {
-    // Test countries known to have borders
-    const url = buildApiUrl(API4.ENDPOINTS.ALPHA, TEST_DATA.VALID_COUNTRY_CODE_2, undefined, API4.BASE_URL);
-    const response = await apiRequest.get(url);
-
-    expect(response.ok()).toBeTruthy();
-    const responseBody = await response.json();
-    const country = responseBody[0];
-    
-    if (country.borders && Array.isArray(country.borders)) {
-      expect(Array.isArray(country.borders)).toBeTruthy();
-      if (country.borders.length > 0) {
-        country.borders.forEach((border: string) => {
-          expect(border).toMatch(/^[A-Z]{1,3}$/);
-        });
-      }
-    }
-  });
-
-  test('GET - Verify flag emoji or symbol exists for countries @smoke', async ({ apiRequest }) => {
-    // Test specific countries
-    const countryCodes = [TEST_DATA.VALID_COUNTRY_CODE, TEST_DATA.VALID_COUNTRY_CODE_2];
-    
-    for (const code of countryCodes) {
-      const url = buildApiUrl(API4.ENDPOINTS.ALPHA, code, undefined, API4.BASE_URL);
-      const response = await apiRequest.get(url);
-      expect(response.ok()).toBeTruthy();
-      
-      const responseBody = await response.json();
-      expect(responseBody.length).toBeGreaterThan(0);
-      
-      responseBody.forEach((country: any) => {
-        if (country.flags) {
-          expect(country.flags).toBeDefined();
-          expect(typeof country.flags).toBe('object');
-        }
-      });
-    }
+    expect([401, 403]).toContain(response.status());
+    const body = await response.json();
+    expect(body).toHaveProperty('message');
   });
 });

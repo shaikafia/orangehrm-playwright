@@ -11,6 +11,19 @@
 import { API } from './api.constants';
 
 /**
+ * Validate JWT format (xxx.yy.zzz)
+ * Matches three base64url parts separated by periods
+ * @param token - Token string to validate
+ * @returns true if token matches JWT pattern
+ */
+export const isJwt = (token: string): boolean => {
+  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token);
+};
+
+export const tokenPrefix = 'token=';
+export const BEARER_TOKEN_PREFIX = 'Bearer ';
+
+/**
  * Build a complete API URL with optional ID, query parameters, and base URL.
  *
  * @param endpoint    - API endpoint path, e.g. "/pim/employees" or "/name"
@@ -33,7 +46,7 @@ export const buildApiUrl = (
   endpoint: string,
   id?: string | number,
   queryParams?: string,
-  baseUrl?: string          // ← NEW optional 4th parameter
+  baseUrl?: string          // ← Optional 4th parameter
 ): string => {
   // Use the provided baseUrl, or fall back to OrangeHRM BASE_URL
   const base = baseUrl ?? API.BASE_URL;
@@ -136,6 +149,7 @@ export const validateUserStructure = (data: any): boolean => {
     typeof data.status === 'object'
   );
 };
+
 /**
  * Validate email format using regex
  * @param email - Email address to validate
@@ -182,5 +196,24 @@ export const validateResourceStructure = (data: any): boolean => {
     typeof data.year === 'number' &&
     typeof data.color === 'string' &&
     typeof data.pantone_value === 'string'
+  );
+};
+export const validateRestfulBookerAuthToken = (data: any): boolean => {
+  return (
+    typeof data.token === 'string' &&
+    data.token.length > 0
+  );
+};
+
+export const validateBookingStructure = (data: any): boolean => {
+  return (
+    typeof data.firstname === 'string' &&
+    typeof data.lastname === 'string' &&
+    typeof data.totalprice === 'number' &&
+    typeof data.depositpaid === 'boolean' &&
+    typeof data.bookingdates === 'object' &&
+    data.bookingdates !== null &&
+    typeof data.bookingdates.checkin === 'string' &&
+    typeof data.bookingdates.checkout === 'string'
   );
 };
