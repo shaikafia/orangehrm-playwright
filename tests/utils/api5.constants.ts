@@ -8,11 +8,11 @@ export const API5 = {
     username: 'admin',
     password: 'password123',
   },
-  INVALID_CREDENTIALS: {          // ✅ moved from spec (comment 1)
+  INVALID_CREDENTIALS: {          
     username: 'wronguser',
     password: 'wrongpass',
   },
-  ERROR_MESSAGES: {               // ✅ moved from spec (comment 2)
+  ERROR_MESSAGES: {              
     BAD_CREDENTIALS: 'Bad credentials',
   },
   TIMEOUTS: {
