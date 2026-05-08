@@ -29,7 +29,7 @@ export const DUMMYJSON_CREDENTIALS = {
 export const DUMMYJSON_IDS = {
   VALID_PRODUCT:    1,
   VALID_PRODUCT_2:  2,
-  INVALID_PRODUCT:  9999,     // does not exist → 404
+  INVALID_PRODUCT:  9999,     
 
   VALID_USER:       1,
   VALID_USER_2:     2,
@@ -44,16 +44,12 @@ export const DUMMYJSON_IDS = {
 export const DUMMYJSON_PAGINATION = {
   LIMIT:            5,
   SKIP_PAGE_1:      0,
-  SKIP_PAGE_2:      5,    // second page starts at index 5 when limit is 5
+  SKIP_PAGE_2:      5,    
 };
 
 // ── Factory functions ─────────────────────────────────────────────────────────
 
-/**
- * Login payload factory.
- * expiresInMins: 30 — DummyJSON supports setting token lifetime.
- * Override any field: createLoginPayload({ password: 'wrongpass' })
- */
+
 export const createLoginPayload = (
   overrides?: Partial<{ username: string; password: string; expiresInMins: number }>
 ) => ({

@@ -1,29 +1,3 @@
-/**
- * API6 — DummyJSON JWT Authentication Tests
- *
- * Why DummyJSON for JWT testing:
- *   - Returns a REAL JWT: three base64url parts separated by dots (header.payload.signature)
- *   - Has /auth/me — a genuinely protected endpoint (401 without token)
- *   - Has refresh token flow — exchange refreshToken for a new access token
- *   - Compare: ReqRes returns an opaque string "QpwL5tpe" — NOT a real JWT
- *
- * Fixture: dummyJwtRequest from api6.fixtures.ts
- *   - Calls POST /auth/login during setup
- *   - Stores token in memory
- *   - Attaches Authorization: Bearer <token> on every request automatically
- *   - Exposes getToken(), getRefreshToken(), getUserId(), getUsername()
- *
- * Test Groups:
- *   Group 1 — JWT Login Flow @critical         (4 tests — 2 positive, 2 negative)
- *   Group 2 — Protected Endpoint /auth/me      (5 tests — 3 positive, 2 negative)
- *   Group 3 — JWT Token Structure Validation   (3 tests — all positive, unique to JWT)
- *   Group 4 — Token Refresh Flow               (2 tests — 1 positive, 1 negative)
- *   Group 5 — Authenticated Products CRUD      (5 tests — 4 positive, 1 negative)
- *   Group 6 — Performance With JWT             (2 tests)
- *   Group 7 — Concurrent Requests With JWT     (1 test)
- *   Group 8 — Error Scenarios                  (3 tests — all negative)
- *                                    Total: 25 tests
- */
 
 import { test } from './utils/api4.fixtures';
 import { expect } from '@playwright/test';
@@ -37,19 +11,12 @@ import {
 } from './utils/api4-testdata';
 import { buildApiUrl } from './utils/api-test.helpers';
 
-// ── URL builder shorthand ─────────────────────────────────────────────────────
-// Reuses your existing buildApiUrl — passes DUMMYJSON_JWT.BASE_URL as 4th arg
-// Same pattern used in api3.spec.ts and api4.spec.ts
 const u = (endpoint: string, id?: string | number, query?: string) =>
   buildApiUrl(endpoint, id, query, DUMMYJSON_JWT.BASE_URL);
 
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 1 — JWT Login Flow @critical
-// 4 tests — 2 positive, 2 negative
-//
-// Uses plain { request } — we are testing the login endpoint itself directly.
-// dummyJwtRequest already calls login inside the fixture so we do not use it
-// here — that would hide what we are actually testing.
+
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('JWT Login Flow @critical', () => {
   // POSITIVE — happy path login
@@ -133,10 +100,6 @@ test.describe('JWT Login Flow @critical', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 2 — Protected Endpoint /auth/me @critical
 // 5 tests — 3 positive, 2 negative
-//
-// /auth/me is the most important group — it ENFORCES authentication.
-// This is what proves the JWT is actually working — not just being received.
-// Without a valid Bearer token the server returns 401.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('Protected Endpoint /auth/me @critical', () => {
   // POSITIVE — valid token, correct user returned
@@ -209,12 +172,6 @@ test.describe('Protected Endpoint /auth/me @critical', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 3 — JWT Token Structure Validation
 // 3 tests — all positive, unique to JWT
-//
-// This is what makes DummyJSON special in this project.
-// We can actually DECODE the JWT parts and inspect the contents.
-// No other API in this project lets us do this —
-// OrangeHRM uses cookies, ReqRes returns an opaque string.
-// Buffer.from(part, 'base64url') decodes each part into readable JSON.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('JWT Token Structure Validation', () => {
   // Decode header — first part of the JWT
@@ -267,10 +224,6 @@ test.describe('JWT Token Structure Validation', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 4 — Token Refresh Flow
 // 2 tests — 1 positive, 1 negative
-//
-// The refresh token is used to get a new access token when the current one
-// expires — without making the user log in again.
-// DummyJSON's refreshToken is also a real 3-part JWT.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('Token Refresh Flow', () => {
   // POSITIVE — valid refresh token returns new access token
@@ -313,9 +266,6 @@ test.describe('Token Refresh Flow', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 5 — Authenticated Products CRUD @smoke
 // 5 tests — 4 positive, 1 negative
-//
-// All five HTTP methods: GET list, POST create, PATCH partial, DELETE, GET 404.
-// Every request goes through dummyJwtRequest which attaches Bearer token.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('Authenticated Products CRUD @smoke', () => {
   // POSITIVE — GET list with pagination
@@ -411,10 +361,6 @@ test.describe('Authenticated Products CRUD @smoke', () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 6 — Performance With JWT
-// 2 tests
-//
-// Date.now() before and after — elapsed must be under 5000ms.
-// Same pattern as api.spec.ts Group 8.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('Performance With JWT', () => {
   test('POST - Login responds within 5000ms', async ({ request }) => {
@@ -441,11 +387,6 @@ test.describe('Performance With JWT', () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 7 — Concurrent Requests With JWT
-// 1 test
-//
-// Fires three requests simultaneously using Promise.all.
-// Same pattern as api.spec.ts Group 9.
-// Proves the Bearer token works under concurrent load.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('Concurrent Requests With JWT', () => {
   test('GET - Three simultaneous requests all return 200 with same token', async ({
@@ -470,13 +411,6 @@ test.describe('Concurrent Requests With JWT', () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 8 — Error Scenarios
-// 3 tests — all negative
-//
-// Every negative test checks:
-//   1. The correct HTTP status code
-//   2. The response body has a structured 'message' field
-// This proves the server handles all failures gracefully — never returns
-// a blank body or an HTML crash page.
 // ════════════════════════════════════════════════════════════════════════════
 test.describe('Error Scenarios', () => {
   // NEGATIVE — wrong credentials

@@ -18,9 +18,7 @@ interface DummyJwtApiRequest {
 
 export const test = base.extend<{ dummyJwtRequest: DummyJwtApiRequest }>({
   dummyJwtRequest: async ({ request }: { request: APIRequestContext }, use) => {
-    // ── STEP 1: POST /auth/login to obtain the JWT ────────────────────────────
-    // This is the core difference vs OrangeHRM.
-    // We do the login right here with a plain HTTP POST — no browser needed.
+    
     let token = '';
     let refreshToken = '';
     let userId = 0;
@@ -61,19 +59,12 @@ export const test = base.extend<{ dummyJwtRequest: DummyJwtApiRequest }>({
       );
     }
 
-    // ── STEP 2: Build auth headers ────────────────────────────────────────────
-    // JWT pattern: Authorization: Bearer <token>
-    // Spread operator adds the header only when we actually have a token.
-    // If login failed, token is '' (falsy) so no Authorization header is added —
-    // tests will receive 401 responses, not silent wrong behaviour.
+
     const authHeaders = () => ({
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     });
 
-    // ── STEP 3: Error logger ──────────────────────────────────────────────────
-    // Same pattern as api.fixtures.ts — logs method, URL, status, body on failure.
-    // substring(0, 200) prevents large error bodies from flooding the console.
     const logOnError = async (method: string, url: string, response: any) => {
       if (!response.ok()) {
         const body = await response.text();
@@ -84,9 +75,7 @@ export const test = base.extend<{ dummyJwtRequest: DummyJwtApiRequest }>({
       return response;
     };
 
-    // ── STEP 4: Five HTTP methods + token accessors ───────────────────────────
-    // Every method: attach auth headers → make request → log if error → return response.
-    // Tests call dummyJwtRequest.get(url) — identical pattern to apiRequest.get(url).
+   
     const dummyJwtRequest: DummyJwtApiRequest = {
       get: async (url: string) => {
         const response = await request.get(url, { headers: authHeaders() });
@@ -119,10 +108,7 @@ export const test = base.extend<{ dummyJwtRequest: DummyJwtApiRequest }>({
       getUserId: () => userId,
       getUsername: () => username,
     };
-
-    // ── STEP 5: Hand fixture to the test ─────────────────────────────────────
-    // Everything before use() = setup. Everything after = teardown.
-    // JWT is stateless — no logout needed, no file to clean up.
+    
     await use(dummyJwtRequest);
   },
 });
