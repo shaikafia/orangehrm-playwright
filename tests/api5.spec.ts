@@ -119,16 +119,14 @@ test('Health check – GET /ping returns OK', async ({ request }) => {
 });
 
 test.describe('Restful Booker API – Negative Tests', () => {
-
   // AUTH
   test('Login with invalid credentials returns error', async ({ request }) => {
     const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.AUTH}`, {
-      data: { username: 'wronguser', password: 'wrongpass' },
+      data: API5.INVALID_CREDENTIALS, 
     });
-    expect(resp.ok()).toBeTruthy(); // API returns 200 even for bad creds
+    expect(resp.ok()).toBeTruthy();
     const body = await resp.json();
-    // But the body contains "Bad credentials" instead of a token
-    expect(body.reason).toBe('Bad credentials');
+    expect(body.reason).toBe(API5.ERROR_MESSAGES.BAD_CREDENTIALS); 
     expect(body.token).toBeUndefined();
   });
 
@@ -148,25 +146,19 @@ test.describe('Restful Booker API – Negative Tests', () => {
 
   // UPDATE
   test('Update a booking without auth token returns 403', async ({ request }) => {
-    const resp = await request.put(
-      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`,
-      {
-        data: { ...sampleBooking, firstname: 'Hacker' },
-        // No Cookie header — no auth
-      }
-    );
+    const resp = await request.put(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`, {
+      data: { ...sampleBooking, firstname: 'Hacker' },
+      // No Cookie header — no auth
+    });
     expect(resp.status()).toBe(403);
   });
 
   // PATCH
   test('Patch a booking without auth token returns 403', async ({ request }) => {
-    const resp = await request.patch(
-      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`,
-      {
-        data: { firstname: 'Hacker' },
-        // No Cookie header — no auth
-      }
-    );
+    const resp = await request.patch(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`, {
+      data: { firstname: 'Hacker' },
+      // No Cookie header — no auth
+    });
     expect(resp.status()).toBe(403);
   });
 
@@ -180,13 +172,9 @@ test.describe('Restful Booker API – Negative Tests', () => {
   });
 
   test('Delete a booking that does not exist returns 405', async ({ request }) => {
-    const resp = await request.delete(
-      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/9999999`,
-      {
-        headers: { Cookie: `token=invalidtoken123` },
-      }
-    );
+    const resp = await request.delete(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/9999999`, {
+      headers: { Cookie: `token=invalidtoken123` },
+    });
     expect(resp.status()).toBe(403); // invalid token = 403 before it even checks the ID
   });
-
 });

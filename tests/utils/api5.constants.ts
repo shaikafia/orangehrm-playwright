@@ -1,8 +1,3 @@
-/**
- * API5 Configuration Constants for Restful Booker API
- * Contains base URL, endpoints, and default credentials for authentication and booking operations.
- */
-
 export const API5 = {
   BASE_URL: 'https://restful-booker.herokuapp.com',
   ENDPOINTS: {
@@ -12,6 +7,13 @@ export const API5 = {
   CREDENTIALS: {
     username: 'admin',
     password: 'password123',
+  },
+  INVALID_CREDENTIALS: {          // ✅ moved from spec (comment 1)
+    username: 'wronguser',
+    password: 'wrongpass',
+  },
+  ERROR_MESSAGES: {               // ✅ moved from spec (comment 2)
+    BAD_CREDENTIALS: 'Bad credentials',
   },
   TIMEOUTS: {
     GET_RESPONSE: 5000,
