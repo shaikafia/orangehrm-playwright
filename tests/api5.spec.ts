@@ -5,10 +5,19 @@ import {
   validateRestfulBookerAuthToken,
   validateBookingStructure,
 } from './utils/api-test.helpers';
-import { sampleBooking } from './utils/api5-test-data';
+import {
+  sampleBooking,
+  updatedBooking,
+  patchedBooking,
+  filterParams,
+} from './utils/api5-test-data';
 
 let token = '';
 let createdBookingId: number;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 1 — AUTHENTICATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 test.describe.serial('Restful Booker API – Authentication & Token handling', () => {
   test.beforeAll(async ({ playwright }) => {
@@ -29,79 +38,71 @@ test.describe.serial('Restful Booker API – Authentication & Token handling', (
   });
 });
 
-test.describe.serial('Restful Booker API – Booking CRUD (Basic auth)', () => {
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 2 — BOOKING CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe.serial('Restful Booker API – Booking CRUD', () => {
   test('Create a new booking', async ({ request }) => {
     const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
       data: sampleBooking,
     });
     expect(resp.status()).toBe(200);
     const body = await resp.json();
-    // The API returns { bookingid: number, booking: {...} }
     expect(body).toHaveProperty('bookingid');
     expect(body).toHaveProperty('booking');
     expect(validateBookingStructure(body.booking)).toBeTruthy();
     createdBookingId = body.bookingid as number;
   });
 
-  test('Update the previously created booking using Basic auth', async ({ request }) => {
-    const updatedPayload = { ...sampleBooking, firstname: 'Jane', totalprice: 200 };
+  test('Update the booking using PUT', async ({ request }) => {
+    const updatedPayload = { ...sampleBooking, ...updatedBooking };
     const resp = await request.put(
       `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${createdBookingId}`,
       {
         data: updatedPayload,
-        headers: {
-          Cookie: `${tokenPrefix}${token}`,
-        },
+        headers: { Cookie: `${tokenPrefix}${token}` },
       }
     );
-    // Successful update returns 200 and the updated booking object.
     expect(resp.status()).toBe(200);
     const body = await resp.json();
-    expect(body.firstname).toBe(updatedPayload.firstname);
-    expect(body.totalprice).toBe(updatedPayload.totalprice);
+    expect(body.firstname).toBe(updatedBooking.firstname);
+    expect(body.totalprice).toBe(updatedBooking.totalprice);
   });
 
   test('Retrieve the updated booking and verify changes', async ({ request }) => {
-    const resp = await request.get(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${createdBookingId}`);
+    const resp = await request.get(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${createdBookingId}`
+    );
     expect(resp.ok()).toBeTruthy();
     const booking = await resp.json();
-    expect(booking.firstname).toBe('Jane');
-    expect(booking.totalprice).toBe(200);
+    expect(booking.firstname).toBe(updatedBooking.firstname);
+    expect(booking.totalprice).toBe(updatedBooking.totalprice);
   });
 
   test('Partially update the booking using PATCH', async ({ request }) => {
-    const patchPayload = { firstname: 'James', additionalneeds: 'Dinner' };
     const resp = await request.patch(
       `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${createdBookingId}`,
       {
-        data: patchPayload,
-        headers: {
-          Cookie: `${tokenPrefix}${token}`,
-        },
+        data: patchedBooking,
+        headers: { Cookie: `${tokenPrefix}${token}` },
       }
     );
-    // Successful patch returns 200 and the updated booking object.
     expect(resp.status()).toBe(200);
     const body = await resp.json();
-    expect(body.firstname).toBe(patchPayload.firstname);
-    expect(body.additionalneeds).toBe(patchPayload.additionalneeds);
-    // Ensure the other properties from previous updates remain intact
-    expect(body.totalprice).toBe(200);
+    expect(body.firstname).toBe(patchedBooking.firstname);
+    expect(body.additionalneeds).toBe(patchedBooking.additionalneeds);
+    expect(body.totalprice).toBe(updatedBooking.totalprice);
   });
 
   test('Delete the booking', async ({ request }) => {
     const resp = await request.delete(
       `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${createdBookingId}`,
       {
-        headers: {
-          Cookie: `${tokenPrefix}${token}`,
-        },
+        headers: { Cookie: `${tokenPrefix}${token}` },
       }
     );
-    // Successful deletion in Restful Booker returns 201 Created
     expect(resp.status()).toBe(201);
-
-    // Verify it's actually deleted
     const getResp = await request.get(
       `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${createdBookingId}`
     );
@@ -109,72 +110,294 @@ test.describe.serial('Restful Booker API – Booking CRUD (Basic auth)', () => {
   });
 });
 
-// Optional sanity check – ping endpoint (GET /ping) – not required but demonstrates a simple GET.
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 3 — HEALTH CHECK
+// ─────────────────────────────────────────────────────────────────────────────
+
 test('Health check – GET /ping returns OK', async ({ request }) => {
   const resp = await request.get(`${API5.BASE_URL}/ping`);
   expect(resp.ok()).toBeTruthy();
   const body = await resp.text();
-  // The service returns a plain string "Created" when healthy.
-  expect(body).toContain('Created');
+  expect(body).toContain(API5.HEALTH_CHECK_RESPONSE);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 4 — NEGATIVE TESTS
+// ─────────────────────────────────────────────────────────────────────────────
+
 test.describe('Restful Booker API – Negative Tests', () => {
-  // AUTH
   test('Login with invalid credentials returns error', async ({ request }) => {
     const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.AUTH}`, {
-      data: API5.INVALID_CREDENTIALS, 
+      data: API5.INVALID_CREDENTIALS,
     });
     expect(resp.ok()).toBeTruthy();
     const body = await resp.json();
-    expect(body.reason).toBe(API5.ERROR_MESSAGES.BAD_CREDENTIALS); 
+    expect(body.reason).toBe(API5.ERROR_MESSAGES.BAD_CREDENTIALS);
     expect(body.token).toBeUndefined();
   });
 
-  // CREATE
-  test('Create booking with missing required fields returns error', async ({ request }) => {
-    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
-      data: { firstname: 'John' }, // missing lastname, totalprice, etc.
+  test('Login with empty username returns error', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.AUTH}`, {
+      data: { username: '', password: API5.CREDENTIALS.password },
     });
-    expect(resp.ok()).toBeFalsy(); // should NOT be 200
+    expect(resp.ok()).toBeTruthy();
+    const body = await resp.json();
+    expect(body.reason).toBeDefined();
+    expect(body.token).toBeUndefined();
   });
 
-  // GET
+  test('Login with empty password returns error', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.AUTH}`, {
+      data: { username: API5.CREDENTIALS.username, password: '' },
+    });
+    expect(resp.ok()).toBeTruthy();
+    const body = await resp.json();
+    expect(body.reason).toBeDefined();
+    expect(body.token).toBeUndefined();
+  });
+
+  test('Login with empty body returns error', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.AUTH}`, {
+      data: {},
+    });
+    expect(resp.ok()).toBeTruthy();
+    const body = await resp.json();
+    expect(body.reason).toBeDefined();
+    expect(body.token).toBeUndefined();
+  });
+
+  test('Create booking with missing required fields returns error', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: { firstname: sampleBooking.firstname },
+    });
+    expect(resp.ok()).toBeFalsy();
+  });
+
+  test('Create booking with empty firstname is handled by server', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: { ...sampleBooking, firstname: '' },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
+  test('Create booking with empty lastname is handled by server', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: { ...sampleBooking, lastname: '' },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
+  test('Create booking with price as string is handled by server', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: { ...sampleBooking, totalprice: 'not-a-number' },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
+  test('Create booking with invalid date format is handled by server', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: {
+        ...sampleBooking,
+        bookingdates: { checkin: '20-11-2026', checkout: '25/11/2026' },
+      },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
+  test('Create booking with very long firstname is handled by server', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: { ...sampleBooking, firstname: 'A'.repeat(1000) },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
+  test('Create booking with special characters in name is handled', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: {
+        ...sampleBooking,
+        firstname: '!@#$%^&*()',
+        lastname: '<script>alert(1)</script>',
+      },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
+  test('Create booking with negative price is handled by server', async ({ request }) => {
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
+      data: { ...sampleBooking, totalprice: -999 },
+    });
+    expect(resp.status()).not.toBe(500);
+  });
+
   test('Get a booking that does not exist returns 404', async ({ request }) => {
-    const resp = await request.get(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/9999999`);
+    const resp = await request.get(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.INVALID_BOOKING}`
+    );
     expect(resp.status()).toBe(404);
   });
 
-  // UPDATE
+  test('Get booking with non-numeric ID returns 404', async ({ request }) => {
+    const resp = await request.get(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/abc`
+    );
+    expect(resp.status()).toBe(404);
+  });
+
   test('Update a booking without auth token returns 403', async ({ request }) => {
-    const resp = await request.put(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`, {
-      data: { ...sampleBooking, firstname: 'Hacker' },
-      // No Cookie header — no auth
-    });
-    expect(resp.status()).toBe(403);
-  });
-
-  // PATCH
-  test('Patch a booking without auth token returns 403', async ({ request }) => {
-    const resp = await request.patch(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`, {
-      data: { firstname: 'Hacker' },
-      // No Cookie header — no auth
-    });
-    expect(resp.status()).toBe(403);
-  });
-
-  // DELETE
-  test('Delete a booking without auth token returns 403', async ({ request }) => {
-    const resp = await request.delete(
-      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/1`
-      // No Cookie header — no auth
+    const resp = await request.put(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.VALID_BOOKING}`,
+      { data: { ...sampleBooking, firstname: 'Hacker' } }
     );
     expect(resp.status()).toBe(403);
   });
 
-  test('Delete a booking that does not exist returns 405', async ({ request }) => {
-    const resp = await request.delete(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/9999999`, {
-      headers: { Cookie: `token=invalidtoken123` },
+  test('PUT with invalid token returns 403', async ({ request }) => {
+    const resp = await request.put(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.VALID_BOOKING}`,
+      {
+        data: sampleBooking,
+        headers: { Cookie: API5.INVALID_TOKEN },
+      }
+    );
+    expect(resp.status()).toBe(403);
+  });
+
+  test('PUT non-existent booking with valid token returns 405', async ({ request }) => {
+    const resp = await request.put(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.INVALID_BOOKING}`,
+      {
+        data: sampleBooking,
+        headers: { Cookie: `${tokenPrefix}${token}` },
+      }
+    );
+    expect(resp.status()).toBe(405);
+  });
+
+  test('PUT with missing required fields returns error', async ({ request }) => {
+    const resp = await request.put(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.VALID_BOOKING}`,
+      {
+        data: { firstname: sampleBooking.firstname },
+        headers: { Cookie: `${tokenPrefix}${token}` },
+      }
+    );
+    expect(resp.status()).not.toBe(200);
+  });
+
+  test('Patch a booking without auth token returns 403', async ({ request }) => {
+    const resp = await request.patch(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.VALID_BOOKING}`,
+      { data: { firstname: 'Hacker' } }
+    );
+    expect(resp.status()).toBe(403);
+  });
+
+  test('PATCH with invalid token returns 403', async ({ request }) => {
+    const resp = await request.patch(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.VALID_BOOKING}`,
+      {
+        data: { firstname: 'Hacker' },
+        headers: { Cookie: API5.INVALID_TOKEN },
+      }
+    );
+    expect(resp.status()).toBe(403);
+  });
+
+  test('PATCH non-existent booking returns 405', async ({ request }) => {
+    const resp = await request.patch(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.INVALID_BOOKING}`,
+      {
+        data: { firstname: patchedBooking.firstname },
+        headers: { Cookie: `${tokenPrefix}${token}` },
+      }
+    );
+    expect(resp.status()).toBe(405);
+  });
+
+  test('Delete a booking without auth token returns 403', async ({ request }) => {
+    const resp = await request.delete(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.VALID_BOOKING}`
+    );
+    expect(resp.status()).toBe(403);
+  });
+
+  test('Delete a booking with invalid token returns 403', async ({ request }) => {
+    const resp = await request.delete(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.INVALID_BOOKING}`,
+      { headers: { Cookie: API5.INVALID_TOKEN } }
+    );
+    expect(resp.status()).toBe(403);
+  });
+
+  test('DELETE non-existent booking with valid token returns 405', async ({ request }) => {
+    const resp = await request.delete(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}/${API5.IDS.INVALID_BOOKING}`,
+      { headers: { Cookie: `${tokenPrefix}${token}` } }
+    );
+    expect(resp.status()).toBe(405);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP 5 — EXTENDED TESTS (GET ALL, FILTER, PERFORMANCE)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Restful Booker API – Extended Tests', () => {
+  test('Get all bookings returns array of booking IDs', async ({ request }) => {
+    const resp = await request.get(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`);
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    expect(Array.isArray(body)).toBeTruthy();
+    expect(body.length).toBeGreaterThan(0);
+    body.forEach((item: any) => {
+      expect(typeof item.bookingid).toBe('number');
     });
-    expect(resp.status()).toBe(403); // invalid token = 403 before it even checks the ID
+  });
+
+  test('Filter bookings by firstname returns matching results', async ({ request }) => {
+    const resp = await request.get(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}?firstname=${filterParams.firstname}`
+    );
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    expect(Array.isArray(body)).toBeTruthy();
+  });
+
+  test('Filter bookings by lastname returns matching results', async ({ request }) => {
+    const resp = await request.get(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}?lastname=${filterParams.lastname}`
+    );
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    expect(Array.isArray(body)).toBeTruthy();
+  });
+
+  test('Filter bookings by checkin and checkout date returns array', async ({ request }) => {
+    const resp = await request.get(
+      `${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}?checkin=${filterParams.checkin}&checkout=${filterParams.checkout}`
+    );
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    expect(Array.isArray(body)).toBeTruthy();
+  });
+
+  test('GET all bookings responds within timeout', async ({ request }) => {
+    const start = Date.now();
+    const resp = await request.get(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`);
+    const elapsed = Date.now() - start;
+    expect(resp.status()).toBe(200);
+    expect(elapsed).toBeLessThan(API5.TIMEOUTS.GET_RESPONSE);
+    console.log(`Response time: ${elapsed}ms`);
+  });
+
+  test('POST login responds within timeout', async ({ request }) => {
+    const start = Date.now();
+    const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.AUTH}`, {
+      data: API5.CREDENTIALS,
+    });
+    const elapsed = Date.now() - start;
+    expect(resp.ok()).toBeTruthy();
+    expect(elapsed).toBeLessThan(API5.TIMEOUTS.POST_RESPONSE);
+    console.log(`Login response time: ${elapsed}ms`);
   });
 });
