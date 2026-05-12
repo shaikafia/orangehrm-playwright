@@ -26,4 +26,8 @@ export const API5 = {
     POST_RESPONSE: 3000,
     PUT_RESPONSE:  3000,
   },
+  SPECIAL_CHARACTERS: {
+  FIRSTNAME: '!@#$%^&*()',
+  LASTNAME: '<script>alert(1)</script>',
+},
 };

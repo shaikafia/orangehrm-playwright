@@ -215,8 +215,8 @@ test.describe('Restful Booker API – Negative Tests', () => {
     const resp = await request.post(`${API5.BASE_URL}${API5.ENDPOINTS.BOOKING}`, {
       data: {
         ...sampleBooking,
-        firstname: '!@#$%^&*()',
-        lastname: '<script>alert(1)</script>',
+        firstname: API5.SPECIAL_CHARACTERS.FIRSTNAME,
+        lastname: API5.SPECIAL_CHARACTERS.LASTNAME,
       },
     });
     expect(resp.status()).not.toBe(500);
